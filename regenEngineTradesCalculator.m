@@ -95,13 +95,14 @@ list_var_names = ["pc_c";
 %% Independent Variable Nominal Values
 std_var_range = [1, 1.1]';
 high_def_var_range = linspace(.8, 1.2, 3)';
-% stdvarrange = highdefvarrange;
+% std_var_range = highdefvarrange;
 
 % psi to Pa
 pc_nom = 128 .* 6894.76;
 
 OF_nom = 1.6;
 expansion_ratio_nom = 1.8;
+% expansion_ratio_nom = 8;
 
 % lbm/s -> kgm/s
 mdot_nom = .8 .* .45359237;
@@ -134,8 +135,8 @@ expansion_ratio_range = expansion_ratio_nom .* std_var_range;
 
 mdot_range = mdot_nom .* std_var_range;
 
-% d_channel_range = d_channel_nom .* stdvarrange;
-d_channel_range = d_channel_nom .* high_def_var_range;
+d_channel_range = d_channel_nom .* std_var_range;
+% d_channel_range = d_channel_nom .* high_def_var_range;
 
 num_channels_range = num_channels_nom .* std_var_range;
 
@@ -409,8 +410,8 @@ for i_pc = 1:length(pc_range)
             exit_flow_props = double(cea_out.get_exit_MolWt_gamma(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio));
             exit_flow_gamma = exit_flow_props(2);
             % Needed for thrust calcs later
-            pex = pc_c ./ cea_out.get_PcOvPe(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio);
-            Cf = sqrt(2 .* exit_flow_gamma.^2 ./ (exit_flow_gamma - 1) .* (2 ./ (exit_flow_gamma + 1)).^((exit_flow_gamma + 1) ./ (exit_flow_gamma - 1)).*(1 - (pex ./ pc_c).^((exit_flow_gamma - 1) ./ exit_flow_gamma))) + expansion_ratio .* ((pex - pa) ./ pc_c);
+            pe = pc_c ./ cea_out.get_PcOvPe(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio);
+            Cf = sqrt(2 .* exit_flow_gamma.^2 ./ (exit_flow_gamma - 1) .* (2 ./ (exit_flow_gamma + 1)).^((exit_flow_gamma + 1) ./ (exit_flow_gamma - 1)).*(1 - (pe ./ pc_c).^((exit_flow_gamma - 1) ./ exit_flow_gamma))) + expansion_ratio .* ((pe - pa) ./ pc_c);
             % Thought theoretical Isp might be interesting to compare to
             % predicted-actual, not really used atm though (ca 11/04/2025)
             Isp_theo = cea_out.get_Isp(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio);
@@ -462,7 +463,7 @@ for i_pc = 1:length(pc_range)
             rho_coolant = fDensity(rho_crit_eth, Zc_eth, T_coolant_i_range, T_crit_eth);
             k_coolant = fk_eth(rho_coolant, T_coolant_i_range);
             mu_coolant = fmu_eth(rho_coolant, T_coolant_i_range);
-            fluid_vel = mdot_channel ./ A_channel_range ./ rho_coolant;
+            coolant_vel = mdot_channel ./ A_channel_range ./ rho_coolant;
             % -------------------------------------------------------------
 
             % liquid and gas film coeffs - equas 8-21 and 8-24 in RPE by
@@ -477,7 +478,7 @@ for i_pc = 1:length(pc_range)
             ReD_flow_laminar_mask = ReD_flow <= ReD_critical;
             ReD_flow_turbulent_mask = ~ReD_flow_laminar_mask;
 
-            Re_coolant = dH_channels .* fluid_vel .* rho_coolant ./ mu_coolant;
+            Re_coolant = dH_channels .* coolant_vel .* rho_coolant ./ mu_coolant;
             Pr_coolant = cp_eth_avg .* mu_coolant ./ k_coolant;
             % Exponent on Pr_coolant is .4 bc fluid is being heated - https://www.sciencedirect.com/topics/engineering/dittus-boelter-correlation?
             NU_coolant = .023 .* Re_coolant.^.8 .* Pr_coolant.^.4;
@@ -488,12 +489,11 @@ for i_pc = 1:length(pc_range)
             hl(hl_laminar_mask) = .023 .* cp_eth_avg .* mdot_channel(hl_laminar_mask) ./ A_channel_range(hl_laminar_mask) .* Re_coolant(hl_laminar_mask).^-.2 .* (mu_coolant(hl_laminar_mask) .* cp_eth_avg ./ k_coolant(hl_laminar_mask)).^(-2./3);
             % Dittus Boelter correlation, used with caution from Re = 2300 to Re = 10k, above 10k it's pretty good
             hl(hl_turbulent_mask) = NU_coolant(hl_turbulent_mask) .* k_coolant(hl_turbulent_mask) ./ dH_channels(hl_turbulent_mask);
-            % hg = .023 .* (throat_flow_density .* squeeze(flow_vel(i_pc, i_OF, i_eps, :, :, :, :, :, :))).^.8 ./ dt.^.2 .* Pr_flow.^.4 .* k_flow ./ mu_flow.^.8;
             
-            pc_pe_c = get_PcOvPe(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio);
-            pe = pc_c ./ pc_pe_c;
+            hg = .023 .* (throat_flow_density .* squeeze(flow_vel(i_pc, i_OF, i_eps, :, :, :, :, :, :))).^.8 ./ dt.^.2 .* Pr_flow_t.^.4 .* k_flow ./ mu_flow_t.^.8;
+            
+            % pc_pe_c = get_PcOvPe(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio);
             % Convert to SI
-            pe = pe ./ 0.000145038;
             pc_pe_t = cea_out.get_Throat_PcOvPe(Pc = pc_c * 0.000145038, MR = OF);
             pc_t = pc_pe_t .* pe;
             
@@ -508,13 +508,13 @@ for i_pc = 1:length(pc_range)
             % k is conductive heat transfer coefficient
             % TR = thermal resistance
             
-            fGetBartzhg
-            h_flow_wall_convection = 
+            % fGetBartzhg
+            % h_flow_wall_convection = 
             k_innerwall_innerwall_conduction = k_wall_range;
             h_innerwall_coolant_convection = 1;
             h_coolant_outerwall_convection = 1;
             k_outerwall_outerwall_conduction = 1;
-            h_outerwall_air_convection;
+            % h_outerwall_air_convection;
 
             TR_flow_wall_convection = 1;
             TR_innerwall_innerwall_conduction = 1;

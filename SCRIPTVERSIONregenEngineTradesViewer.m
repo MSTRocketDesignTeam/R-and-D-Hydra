@@ -138,24 +138,24 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
         wall_thicknessmmSliderLabel     matlab.ui.control.Label
         Slidermdot                     matlab.ui.control.Slider
         dtmmLabel                      matlab.ui.control.Label
-        SliderT_coolant                matlab.ui.control.Slider
-        T_coolantdegCSlider_2Label     matlab.ui.control.Label
+        SliderT_coolant_i                matlab.ui.control.Slider
+        T_coolant_idegCSlider_2Label     matlab.ui.control.Label
         Sliderexpansion_ratio          matlab.ui.control.Slider
         expansionratioSliderLabel      matlab.ui.control.Label
         SliderOF                       matlab.ui.control.Slider
         OFSliderLabel                  matlab.ui.control.Label
         Sliderd_channel                matlab.ui.control.Slider
         d_channelmmSliderLabel         matlab.ui.control.Label
-        Sliderpc                       matlab.ui.control.Slider
-        pcpsiSliderLabel               matlab.ui.control.Label
+        Sliderpc_c                       matlab.ui.control.Slider
+        pc_cpsiSliderLabel               matlab.ui.control.Label
         yaxisDropDown                  matlab.ui.control.DropDown
         yaxisDropDownLabel             matlab.ui.control.Label
-        UIAxespc                       matlab.ui.control.UIAxes
+        UIAxespc_c                       matlab.ui.control.UIAxes
         UIAxesd_channel                matlab.ui.control.UIAxes
         UIAxesOF                       matlab.ui.control.UIAxes
         UIAxesnum_channels             matlab.ui.control.UIAxes
         UIAxesexpansion_ratio          matlab.ui.control.UIAxes
-        UIAxesT_coolant                matlab.ui.control.UIAxes
+        UIAxesT_coolant_i                matlab.ui.control.UIAxes
         UIAxesmdot                     matlab.ui.control.UIAxes
         UIAxeswall_t                    matlab.ui.control.UIAxes
         UIAxesk_wall                   matlab.ui.control.UIAxes
@@ -258,7 +258,7 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
                             y_vals(:, 3) = T_AlSi10Mg_melt;
                         end
                     case "P_coolant_min"
-                        % if not "varying pc" graph
+                        % if not "varying pc_c" graph
                         % if i_var ~= 1
                         y_vals(:, 2) = app.("Slider" + list_var_names(i_i)).Value;
                         % end
@@ -322,11 +322,11 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
                     end
                 case "P_coolant_min"
                     for i_var = 1:length(list_var_names)
-                        % if not "varying pc" graph, show how min. required
+                        % if not "varying pc_c" graph, show how min. required
                         % coolant press compares to specified chamber press
                         % if i_var ~= 1
                         var_name = list_var_names(i_var);
-                        legend(eval("app.UIAxes" + var_name), "min allowable coolant press", "pc");
+                        legend(eval("app.UIAxes" + var_name), "min allowable coolant press", "pc_c");
                         % end
                     end
             end
@@ -684,9 +684,9 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
             fRefreshPlots(app, yaxisname);
         end
 
-        % Value changed function: Sliderpc
-        function SliderpcValueChanged(app, event)
-            snapSlider(app, "Sliderpc");
+        % Value changed function: Sliderpc_c
+        function Sliderpc_cValueChanged(app, event)
+            snapSlider(app, "Sliderpc_c");
             yaxisDropDownValueChanged(app, event);
         end
 
@@ -726,9 +726,9 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
             yaxisDropDownValueChanged(app, event);
         end
 
-        % Value changed function: SliderT_coolant
-        function SliderT_coolantValueChanged(app, event)
-            snapSlider(app, "SliderT_coolant");
+        % Value changed function: SliderT_coolant_i
+        function SliderT_coolant_iValueChanged(app, event)
+            snapSlider(app, "SliderT_coolant_i");
             yaxisDropDownValueChanged(app, event);
         end
 
@@ -869,13 +869,13 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
             zlabel(app.UIAxesmdot, 'Z')
             app.UIAxesmdot.Position = [897 485 300 300];
 
-            % Create UIAxesT_coolant
-            app.UIAxesT_coolant = uiaxes(app.DataTab);
-            title(app.UIAxesT_coolant, 'varying T coolant')
-            xlabel(app.UIAxesT_coolant, 'X')
-            ylabel(app.UIAxesT_coolant, 'Y')
-            zlabel(app.UIAxesT_coolant, 'Z')
-            app.UIAxesT_coolant.Position = [600 186 300 300];
+            % Create UIAxesT_coolant_i
+            app.UIAxesT_coolant_i = uiaxes(app.DataTab);
+            title(app.UIAxesT_coolant_i, 'varying T coolant')
+            xlabel(app.UIAxesT_coolant_i, 'X')
+            ylabel(app.UIAxesT_coolant_i, 'Y')
+            zlabel(app.UIAxesT_coolant_i, 'Z')
+            app.UIAxesT_coolant_i.Position = [600 186 300 300];
 
             % Create UIAxesexpansion_ratio
             app.UIAxesexpansion_ratio = uiaxes(app.DataTab);
@@ -909,13 +909,13 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
             zlabel(app.UIAxesd_channel, 'Z')
             app.UIAxesd_channel.Position = [4 186 300 300];
 
-            % Create UIAxespc
-            app.UIAxespc = uiaxes(app.DataTab);
-            title(app.UIAxespc, 'varying pc')
-            xlabel(app.UIAxespc, 'X')
-            ylabel(app.UIAxespc, 'Y')
-            zlabel(app.UIAxespc, 'Z')
-            app.UIAxespc.Position = [4 485 300 300];
+            % Create UIAxespc_c
+            app.UIAxespc_c = uiaxes(app.DataTab);
+            title(app.UIAxespc_c, 'varying pc_c')
+            xlabel(app.UIAxespc_c, 'X')
+            ylabel(app.UIAxespc_c, 'Y')
+            zlabel(app.UIAxespc_c, 'Z')
+            app.UIAxespc_c.Position = [4 485 300 300];
 
             % Create TabGroup
             app.TabGroup = uitabgroup(app.DataTab);
@@ -962,16 +962,16 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
             app.yaxisDropDown.ValueChangedFcn = createCallbackFcn(app, @yaxisDropDownValueChanged, true);
             app.yaxisDropDown.Position = [55 176 100 22];
 
-            % Create pcpsiSliderLabel
-            app.pcpsiSliderLabel = uilabel(app.DataTab);
-            app.pcpsiSliderLabel.HorizontalAlignment = 'right';
-            app.pcpsiSliderLabel.Position = [93 93 28 30];
-            app.pcpsiSliderLabel.Text = {'pc'; '(psi)'};
+            % Create pc_cpsiSliderLabel
+            app.pc_cpsiSliderLabel = uilabel(app.DataTab);
+            app.pc_cpsiSliderLabel.HorizontalAlignment = 'right';
+            app.pc_cpsiSliderLabel.Position = [93 93 28 30];
+            app.pc_cpsiSliderLabel.Text = {'pc_c'; '(psi)'};
 
-            % Create Sliderpc
-            app.Sliderpc = uislider(app.DataTab);
-            app.Sliderpc.ValueChangedFcn = createCallbackFcn(app, @SliderpcValueChanged, true);
-            app.Sliderpc.Position = [143 110 150 3];
+            % Create Sliderpc_c
+            app.Sliderpc_c = uislider(app.DataTab);
+            app.Sliderpc_c.ValueChangedFcn = createCallbackFcn(app, @Sliderpc_cValueChanged, true);
+            app.Sliderpc_c.Position = [143 110 150 3];
 
             % Create d_channelmmSliderLabel
             app.d_channelmmSliderLabel = uilabel(app.DataTab);
@@ -1006,16 +1006,16 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
             app.Sliderexpansion_ratio.ValueChangedFcn = createCallbackFcn(app, @Sliderexpansion_ratioValueChanged, true);
             app.Sliderexpansion_ratio.Position = [739 110 150 3];
 
-            % Create T_coolantdegCSlider_2Label
-            app.T_coolantdegCSlider_2Label = uilabel(app.DataTab);
-            app.T_coolantdegCSlider_2Label.HorizontalAlignment = 'right';
-            app.T_coolantdegCSlider_2Label.Position = [659 25 58 30];
-            app.T_coolantdegCSlider_2Label.Text = {'T_coolant'; '(deg C)'};
+            % Create T_coolant_idegCSlider_2Label
+            app.T_coolant_idegCSlider_2Label = uilabel(app.DataTab);
+            app.T_coolant_idegCSlider_2Label.HorizontalAlignment = 'right';
+            app.T_coolant_idegCSlider_2Label.Position = [659 25 58 30];
+            app.T_coolant_idegCSlider_2Label.Text = {'T_coolant_i'; '(deg C)'};
 
-            % Create SliderT_coolant
-            app.SliderT_coolant = uislider(app.DataTab);
-            app.SliderT_coolant.ValueChangedFcn = createCallbackFcn(app, @SliderT_coolantValueChanged, true);
-            app.SliderT_coolant.Position = [739 42 150 3];
+            % Create SliderT_coolant_i
+            app.SliderT_coolant_i = uislider(app.DataTab);
+            app.SliderT_coolant_i.ValueChangedFcn = createCallbackFcn(app, @SliderT_coolant_iValueChanged, true);
+            app.SliderT_coolant_i.Position = [739 42 150 3];
 
             % Create dtmmLabel
             app.dtmmLabel = uilabel(app.DataTab);
