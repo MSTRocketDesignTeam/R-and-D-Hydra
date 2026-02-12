@@ -1,0 +1,17 @@
+%%%%%%%%%%
+----------
+Alloy Data
+----------
+Instructions:
+1) x
+
+densalloy: chamber alloy density, kg/m^3
+T_melt: melting temperature, K
+
+%%%%%%%%%%
+\AlSi10Mg\
+
+densalloy = .002665
+T_melt = 843.15
+
+\end\

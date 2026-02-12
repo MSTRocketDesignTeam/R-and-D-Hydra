@@ -1,0 +1,40 @@
+%%%%%%%%%%%
+-----------
+Config File
+-----------
+Instructions:
+1) Read variable info. below
+2) Set what default values these variables should be
+initialized with in the calculator
+3) Save and close config file
+4) Run calculator
+
+g0: gravitational acceleration, m^2/s
+Lstar: L*, characteristic length of combustion chamber, m
+R_universal: universal gas constant, J/kg-K
+p_sea: sea level atmospheric pressure, Pa
+T_sea: sea level atmospheric temperature, K
+mlr_wgt_air: molar weight of air, kg/mol
+alt: testing altitude, m
+DF_stress: design factor for total mechanical stress
+DF_temp: design factor for gas-side hot wall temperature 
+DF_p_coolant: design factor for minimum coolant pressure
+ to prevent coolant-boiling
+
+%%%%%%%%%%%
+g0 = 9.80665
+Lstar = .6
+R_universal = 8.314462618
+p_sea = 101325
+T_sea = 288.15
+mlr_wgt_air = .02896968
+alt = 342
+DF_stress = 2
+DF_temp = 1.5
+DF_p_coolant = 1.2
+
+
+
+
+
+

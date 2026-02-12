@@ -1,0 +1,24 @@
+%%%%%%%%%%%%%%%
+---------------
+Propellant Data
+---------------
+Instructions:
+1) x
+
+name: the name
+phase: phase (liquid or gas), "L" or "G"
+cost: cost, USD/kgm
+
+Notes:
+1) kgm means kilogram-mass, whereas kgf means
+ kilogram-force. 1 kgf = 1 kgm * g, where g is
+ gravitational acceleration in m/s^2
+
+%%%%%%%%%%%%%%%
+\CH3CH2OH\
+
+name = ethanol
+phase = L
+cost = 
+
+\end\
