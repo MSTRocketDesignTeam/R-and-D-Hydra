@@ -4,6 +4,7 @@
 
 clc
 clear
+
 % 1) Make sure python is installed on your system and MATLAB can use it
 % 2) Install the rocketcea library/module. Ask internet or AI for help. May
 %   need to do some testing to get it working first before trying this
@@ -24,13 +25,13 @@ filename_datastorage = append(pwd, "\regenEngineTradesData.mat");
 % T_AlSi10Mg_melt           Chamber alloy melting temp
 % cost_nit                  USD per kgm
 % cost_eth                  USD per kgm
-% yieldstress_alloy*        *Linearly interpolated with separate function
-%                           (dependent on hot wall temperature)
 % E_alloy                   Modulus of elasticity of chamber alloy
 % alpha_alloy               CTE
 % lchannel                  Conservative estimate of coolant channel length
 %                               (overestimate- leads to overestimating
 %                               minimum required coolant pressure)
+
+filename_config = append(pwd, "calculator_config.txt");
 
 g0 = 9.81;
 Lstar = .6; % estimate for MIT's value for their eth/nit biprop was .6
@@ -50,9 +51,9 @@ alt = 342;
 pa = fPAtAlt(alt);
 
 % RDT technically has no DF for these
-DFstress = 2;
-DFtemp = 1.5;
-DFcoolantpress = 1.2;
+DF_stress = 2;
+DF_temp = 1.5;
+DF_p_coolant = 1.2;
 % g/cc to kg/m^3
 densalloy = 2.665 .* 10.^-3;
 % deg C to K
@@ -335,8 +336,10 @@ throat_flow_temp = zeros(range_lengths);
 Vc = zeros(range_lengths);
 flow_sonic = zeros(range_lengths);
 vol_engine = zeros(range_lengths);
-r_engine = zeros([range_lengths, numelsnoz .* numsectionsnoz]);
-z_engine = zeros([range_lengths, numelsnoz .* numsectionsnoz]);
+% + 2 comes from linear section being defined by only two (2) points it
+%   doesn't need to be an array
+r_engine = zeros([range_lengths, numelsnoz .* (numsectionsnoz - 1) + 2]);
+z_engine = zeros([range_lengths, numelsnoz .* (numsectionsnoz - 1) + 2]);
 L_nozzle_parabolic = zeros(range_lengths);
 Re = zeros(range_lengths);
 thetaN = zeros(range_lengths);
@@ -691,11 +694,14 @@ for i_pc = 1:length(pc_range)
 
             L_chamber_linear(i_pc, i_OF, i_eps, :, :, :, :, :, :) = Vcl ./ (pi .* squeeze(Rc(i_pc, i_OF, i_eps, :, :, :, :, :, :)).^2);
 
-            % r_chamber_linear = Rc .* ones(1, 50);
-            r_chamber_linear = getReshapedSummationArray(ones(1, numelsnoz), num_dims_small);
+            % Using 2 instead of numelsnoz in ones() because this section
+            %   is straight, defined by only two (2) points
+            r_chamber_linear = getReshapedSummationArray(ones(1, 2), num_dims_small);
             r_chamber_linear = r_chamber_linear .* squeeze(Rc(i_pc, i_OF, i_eps, :, :, :, :, :, :));
 
-            z_chamber_linear = getReshapedSummationArray(linspace(0, 1, numelsnoz), num_dims_small);
+            % Using 2 instead of numelsnoz in linspace() because this
+            %   section is straight, defined by only two (2) points
+            z_chamber_linear = getReshapedSummationArray(linspace(0, 1, 2), num_dims_small);
             z_chamber_linear = z_chamber_linear .* squeeze(L_chamber_linear(i_pc, i_OF, i_eps, :, :, :, :, :, :));
 
             % Shift z
@@ -807,7 +813,7 @@ for i_pc = 1:length(pc_range)
     end
 end
 % min coolant press to prevent it boiling in the channels (w/in DF)
-P_coolant_min = fpvapeth(T_coolant_f) ./ DFcoolantpress;
+P_coolant_min = fpvapeth(T_coolant_f) ./ DF_p_coolant;
 therm_stress(:, :, :, :, :, :, :, :, :) = E_alloy .* alpha_alloy .* (Twg - Twl);
 
 % Get runtime diagnostics
@@ -820,9 +826,9 @@ timeperengine = runtime / num_engines
 % constants
 % K to deg C
 T_AlSi10Mg_melt = T_AlSi10Mg_melt - 273.15;
-T_w_max = T_AlSi10Mg_melt ./ DFtemp;
+T_w_max = T_AlSi10Mg_melt ./ DF_temp;
 % Already in MPa
-yieldstress_max = yieldstress_alloy ./ DFstress;
+yieldstress_max = yieldstress_alloy ./ DF_stress;
 % independent vars
 % update this compact cell array too
 % ranges = {pc_range, OF_range, expansion_ratio_range, mdot_range, d_channel_range, num_channels_range, T_coolant_i_range, wall_t_range, k_wall_range};
