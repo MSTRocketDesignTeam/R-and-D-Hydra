@@ -429,14 +429,23 @@ for i_pc = 1:length(pc_range)
             throat_flow_density = CEA_densities(2);
             % Gets things needed for gas film coeff calc later
             throat_trans = double(cea_out.get_Throat_Transport(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio));
-            % milipoise to Pa-s
             cp_flow_t = throat_trans(1);
-            % Convert from But/lbm-degR to SI units, J/kg-K
+            % Convert from Btu/lbm-degR to SI units, J/kg-K
             cp_flow_t = cp_flow_t .* 1055.06 ./ (.453592 ./ 1.8);
+            % milipoise to Pa-s
             mu_flow_t = throat_trans(2) .* 10.^-4;
             % millicalories / (cm-K-sec) to W/m-K
-            k_flow = throat_trans(3) .* .4184;
+            k_flow_t = throat_trans(3) .* .4184;
             Pr_flow_t = throat_trans(4);
+            chamber_trans = double(cea_out.get_Chamber_Transport(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio));
+            % Convert from But/lbm-degR to SI units, J/kg-K
+            cp_flow_chamber = chamber_trans(1) .* 1055.06 ./ (.453592 ./ 1.8);
+            % milipoise to Pa-s
+            mu_flow_chamber = chamber_trans(2) .* 10.^-4;
+            % millicalories / (cm-K-sec) to W/m-K
+            k_flow_chamber = chamber_trans(3) .* .4184;
+            Pr_flow_chamber = chamber_trans(4);
+
             % ft/s -> m/s
             cstar_theo(i_pc, i_OF, i_eps, :, :, :, :, :, :) = cea_out.get_Cstar(Pc = pc_c * 0.000145038, MR = OF) .* .3048;
 
@@ -453,85 +462,7 @@ for i_pc = 1:length(pc_range)
             cstar(i_pc, i_OF, i_eps, :, :, :, :, :, :) = squeeze(Isp(i_pc, i_OF, i_eps, :, :, :, :, :, :)) .* g0 ./ Cf;
             eta_cstar(i_pc, i_OF, i_eps, :, :, :, :, :, :) = squeeze(cstar(i_pc, i_OF, i_eps, :, :, :, :, :, :)) ./ squeeze(cstar_theo(i_pc, i_OF, i_eps, :, :, :, :, :, :));
 
-            % -------------------------------------------------------------
-            % Needed to find film coeffs
-            % flow velocity in chamber (just throat flow vel or sonic flow
-            % vel bc we're at throat)
-            flow_vel = flow_sonic;
-            % hydraulic radius of channel is 4 * area / perimeter
-            dH_channels = 4 .* A_channel_range ./ (3 .* d_channel_range + 2 .* d_channel_range ./ sqrt(2));
-            % Remember it's just fuel in channels
-            mdot_channel = mdot_range .* (1 ./ (1 + OF)) ./ num_channels_range;
-            % rackett equation used to calc coolant density
-            rho_coolant = fDensity(rho_crit_eth, Zc_eth, T_coolant_i_range, T_crit_eth);
-            k_coolant = fk_eth(rho_coolant, T_coolant_i_range);
-            mu_coolant = fmu_eth(rho_coolant, T_coolant_i_range);
-            coolant_vel = mdot_channel ./ A_channel_range ./ rho_coolant;
-            % -------------------------------------------------------------
-
-            % liquid and gas film coeffs - equas 8-21 and 8-24 in RPE by
-            % Sutton
-            % Check throat Re is high enough (> 10k) to use Sutton hl
-            % equation
-            % hydraulic diam is 4 * area / perimeter
             dt = sqrt(squeeze(At(i_pc, i_OF, i_eps, :, :, :, :, :, :)) .* 4 ./ pi);
-            ReD_flow = throat_flow_density .* squeeze(flow_vel(i_pc, i_OF, i_eps, :, :, :, :, :, :)) .* dt ./ mu_flow_t;
-            % Check if ReD_flow is laminar or turbulent
-            ReD_critical = 2300;
-            ReD_flow_laminar_mask = ReD_flow <= ReD_critical;
-            ReD_flow_turbulent_mask = ~ReD_flow_laminar_mask;
-
-            Re_coolant = dH_channels .* coolant_vel .* rho_coolant ./ mu_coolant;
-            Pr_coolant = cp_eth_avg .* mu_coolant ./ k_coolant;
-            % Exponent on Pr_coolant is .4 bc fluid is being heated - https://www.sciencedirect.com/topics/engineering/dittus-boelter-correlation?
-            NU_coolant = .023 .* Re_coolant.^.8 .* Pr_coolant.^.4;
-            hl_laminar_mask = Re_coolant <= ReD_critical;
-            hl_turbulent_mask = ~hl_laminar_mask;
-            hl = zeros(range_lengths(4:end));
-            % only valid for laminar
-            hl(hl_laminar_mask) = .023 .* cp_eth_avg .* mdot_channel(hl_laminar_mask) ./ A_channel_range(hl_laminar_mask) .* Re_coolant(hl_laminar_mask).^-.2 .* (mu_coolant(hl_laminar_mask) .* cp_eth_avg ./ k_coolant(hl_laminar_mask)).^(-2./3);
-            % Dittus Boelter correlation, used with caution from Re = 2300 to Re = 10k, above 10k it's pretty good
-            hl(hl_turbulent_mask) = NU_coolant(hl_turbulent_mask) .* k_coolant(hl_turbulent_mask) ./ dH_channels(hl_turbulent_mask);
-            
-            hg = .023 .* (throat_flow_density .* squeeze(flow_vel(i_pc, i_OF, i_eps, :, :, :, :, :, :))).^.8 ./ dt.^.2 .* Pr_flow_t.^.4 .* k_flow ./ mu_flow_t.^.8;
-            
-            % pc_pe_c = get_PcOvPe(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio);
-            % Convert to SI
-            pc_pe_t = cea_out.get_Throat_PcOvPe(Pc = pc_c * 0.000145038, MR = OF);
-            pc_t = pc_pe_t .* pe;
-            
-
-            % Get radial heat transfer through wall and hot wall temps
-            % Accounts for hl coefficient being for heat transfer over
-            %   larger area than hg coefficient (hot wall area facing
-            %   channel per-cross-section is larger inside the channel than
-            %   in the chamber)
-            
-            % h is convective heat transfer coefficient
-            % k is conductive heat transfer coefficient
-            % TR = thermal resistance
-            
-            % fGetBartzhg
-            % h_flow_wall_convection = 
-            k_innerwall_innerwall_conduction = k_wall_range;
-            h_innerwall_coolant_convection = 1;
-            h_coolant_outerwall_convection = 1;
-            k_outerwall_outerwall_conduction = 1;
-            % h_outerwall_air_convection;
-
-            TR_flow_wall_convection = 1;
-            TR_innerwall_innerwall_conduction = 1;
-            TR_innerwall_coolant_convection = 1;
-            TR_coolant_outerwall_convection = 1;
-            TR_outerwall_outerwall_conduction = 1;
-            TR_outerwall_air_convection = 1;
-            % Not modeling any radiation
-            lumped_TR = (1 ./ hg + wall_t_range ./ k_wall_range + 1 ./ hl ./ ((dt + wall_t_range) ./ dt));
-            q(i_pc, i_OF, i_eps, :, :, :, :, :, :) = (squeeze(throat_flow_temp(i_pc, i_OF, i_eps, :, :, :, :, :, :)) - T_coolant_i_range) ./ lumped_TR;
-            Twg(i_pc, i_OF, i_eps, :, :, :, :, :, :) = squeeze(throat_flow_temp(i_pc, i_OF, i_eps, :, :, :, :, :, :)) - squeeze(q(i_pc, i_OF, i_eps, :, :, :, :, :, :)) ./ hg;
-            Twl(i_pc, i_OF, i_eps, :, :, :, :, :, :) = T_coolant_i_range + squeeze(q(i_pc, i_OF, i_eps, :, :, :, :, :, :)) ./ hl;
-
-            yieldstress_alloy(i_pc, i_OF, i_eps, :, :, :, :, :, :) = getYieldStress(squeeze(Twg(i_pc, i_OF, i_eps, :, :, :, :, :, :)));
 
             %% Calculate nozzle contour geometry
 
@@ -722,6 +653,12 @@ for i_pc = 1:length(pc_range)
             % Exit
 
             axial_temp_grad = [squeeze(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :))'; zeros(1, length(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :)))];
+            axial_mach_grad = axial_temp_grad;
+            axial_vel_grad = axial_temp_grad;
+            axial_rho_grad = axial_temp_grad;
+            mu_flow_grad = axial_temp_grad;
+            k_flow_grad = axial_temp_grad;
+            Pr_flow_grad = axial_temp_grad;
             area_ratios = squeeze(r_engine(i_pc, i_OF, i_eps, :, :, :, :, :, :, :)).^2 ./ Rt.^2;
 
             % area_ratios is the same for every for-loop iteration varying
@@ -748,7 +685,7 @@ for i_pc = 1:length(pc_range)
 
             % M term not present because M is 1
             temp_mach_constant = squeeze(throat_flow_temp(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1)) * (1 + (throat_flow_gamma - 1) / 2);
-            fTemperatureOfMach = @(M, gamma) temp_mach_constant / (1 + (gamma - 1) / 2 * M^2);
+            fGetTemperatureOfMach = @(M, gamma) temp_mach_constant / (1 + (gamma - 1) / 2 * M^2);
 
             for i_AR = length(area_ratios):-1:1
                 area_ratio = area_ratios(i_AR);
@@ -760,13 +697,22 @@ for i_pc = 1:length(pc_range)
                     if abs(area_ratio - 1) <= tol_low % Throat reached, switch to using throat value
                         bool_subsonic = 0;
                         gamma_guess = throat_flow_gamma;
+                        mu_flow_station = mu_flow_t;
+                        k_flow_station = k_flow_t;
+                        Pr_flow_station = Pr_flow_t;
                         M_guess = 1;
                     else % Throat not reached, keep using chamber value
                         gamma_guess = chamber_flow_gamma;
+                        mu_flow_station = mu_flow_chamber;
+                        k_flow_station = k_flow_chamber;
+                        Pr_flow_station = Pr_flow_chamber;
                         M_guess = .01;
                     end
                 else % In supersonic region, use throat value
                     gamma_guess = throat_flow_gamma;
+                    mu_flow_station = mu_flow_t;
+                    k_flow_station = k_flow_t;
+                    Pr_flow_station = Pr_flow_t;
 
                     % Checks if M_guess should be 1 or 1.2
                     if abs(area_ratio - 1) <= tol_low
@@ -788,8 +734,150 @@ for i_pc = 1:length(pc_range)
 
                 % For debugging
                 % fprintf("M is %f\n", M);
-                axial_temp_grad(2, i_AR) = fTemperatureOfMach(M, gamma_guess);
+                axial_mach_grad(2, i_AR) = M;
+                temp_i_AR = fGetTemperatureOfMach(M, gamma_guess);
+                axial_temp_grad(2, i_AR) = temp_i_AR;
+                axial_vel_grad(2, i_AR) = (gamma_guess .* R_universal .* temp_i_AR ./ M) .^ .5;
+                % Just 1st engine config for now
+                cross_section_area = area_ratio .* squeeze(At(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1));
+                mu_flow_grad(2, i_AR) = mu_flow_station;
+                k_flow_grad(2, i_AR) = k_flow_station;
+                Pr_flow_grad(2, i_AR) = Pr_flow_station;
             end
+
+            % -------------------------------------------------------------
+            
+
+            % Needed to find film coeffs
+            % flow velocity in chamber (just throat flow vel or sonic flow
+            % vel bc we're at throat)
+            flow_vel = flow_sonic;
+            % hydraulic radius of channel is 4 * area / perimeter
+            dH_channels = 4 .* A_channel_range ./ (4 .* d_channel_range);
+            % Remember it's just fuel in channels
+            mdot_channel = mdot_range .* (1 ./ (1 + OF)) ./ num_channels_range;
+            % rackett equation used to calc coolant density
+            rho_coolant = fDensity(rho_crit_eth, Zc_eth, T_coolant_i_range, T_crit_eth);
+            k_coolant = fk_eth(rho_coolant, T_coolant_i_range);
+            mu_coolant = fmu_eth(rho_coolant, T_coolant_i_range);
+            coolant_vel = mdot_channel ./ A_channel_range ./ rho_coolant;
+            % -------------------------------------------------------------
+
+            % liquid and gas film coeffs - equas 8-21 and 8-24 in RPE by
+            % Sutton
+            % Check throat Re is high enough (> 10k) to use Sutton hl
+            % equation
+            % hydraulic diam is 4 * area / perimeter
+            
+            ReD_flow = throat_flow_density .* squeeze(flow_vel(i_pc, i_OF, i_eps, :, :, :, :, :, :)) .* dt ./ mu_flow_t;
+            % Check if ReD_flow is laminar or turbulent
+            ReD_critical = 2300;
+            ReD_flow_laminar_mask = ReD_flow <= ReD_critical;
+            ReD_flow_turbulent_mask = ~ReD_flow_laminar_mask;
+
+            Re_coolant = dH_channels .* coolant_vel .* rho_coolant ./ mu_coolant;
+            Pr_coolant = cp_eth_avg .* mu_coolant ./ k_coolant;
+            % Exponent on Pr_coolant is .4 bc fluid is being heated - https://www.sciencedirect.com/topics/engineering/dittus-boelter-correlation?
+            NU_coolant = .023 .* Re_coolant.^.8 .* Pr_coolant.^.4;
+            hl_laminar_mask = Re_coolant <= ReD_critical;
+            hl_turbulent_mask = ~hl_laminar_mask;
+            hl = zeros(range_lengths(4:end));
+            % only valid for laminar
+            hl(hl_laminar_mask) = .023 .* cp_eth_avg .* mdot_channel(hl_laminar_mask) ./ A_channel_range(hl_laminar_mask) .* Re_coolant(hl_laminar_mask).^-.2 .* (mu_coolant(hl_laminar_mask) .* cp_eth_avg ./ k_coolant(hl_laminar_mask)).^(-2./3);
+            % Dittus Boelter correlation, used with caution from Re = 2300 to Re = 10k, above 10k it's pretty good
+            hl(hl_turbulent_mask) = NU_coolant(hl_turbulent_mask) .* k_coolant(hl_turbulent_mask) ./ dH_channels(hl_turbulent_mask);
+            
+            hg = .023 .* (throat_flow_density .* squeeze(flow_vel(i_pc, i_OF, i_eps, :, :, :, :, :, :))).^.8 ./ dt.^.2 .* Pr_flow_t.^.4 .* k_flow_t ./ mu_flow_t.^.8;
+            
+            % pc_pe_c = get_PcOvPe(Pc = pc_c * 0.000145038, MR = OF, eps = expansion_ratio);
+            % Convert to SI
+            pc_pe_t = cea_out.get_Throat_PcOvPe(Pc = pc_c * 0.000145038, MR = OF);
+            pc_t = pc_pe_t .* pe;
+            
+
+            % Get radial heat transfer through wall and hot wall temps
+            % Accounts for hl coefficient being for heat transfer over
+            %   larger area than hg coefficient (hot wall area facing
+            %   channel per-cross-section is larger inside the channel than
+            %   in the chamber)
+            
+            % h is convective heat transfer coefficient
+            % k is conductive heat transfer coefficient
+            % TR = thermal resistance
+            
+            % fGetBartzhg
+            % h_flow_wall_convection = 
+            k_innerwall_innerwall_conduction = k_wall_range;
+            h_innerwall_coolant_convection = 1;
+            h_coolant_outerwall_convection = 1;
+            k_outerwall_outerwall_conduction = 1;
+            % h_outerwall_air_convection;
+
+            TR_flow_wall_convection = 1;
+            TR_innerwall_innerwall_conduction = 1;
+            TR_innerwall_coolant_convection = 1;
+            TR_coolant_outerwall_convection = 1;
+            TR_outerwall_outerwall_conduction = 1;
+            TR_outerwall_air_convection = 1;
+            % Not modeling any radiation
+            lumped_TR = (1 ./ hg + wall_t_range ./ k_wall_range + 1 ./ hl ./ ((dt + wall_t_range) ./ dt));
+            q(i_pc, i_OF, i_eps, :, :, :, :, :, :) = (squeeze(throat_flow_temp(i_pc, i_OF, i_eps, :, :, :, :, :, :)) - T_coolant_i_range) ./ lumped_TR;
+            Twg(i_pc, i_OF, i_eps, :, :, :, :, :, :) = squeeze(throat_flow_temp(i_pc, i_OF, i_eps, :, :, :, :, :, :)) - squeeze(q(i_pc, i_OF, i_eps, :, :, :, :, :, :)) ./ hg;
+            Twl(i_pc, i_OF, i_eps, :, :, :, :, :, :) = T_coolant_i_range + squeeze(q(i_pc, i_OF, i_eps, :, :, :, :, :, :)) ./ hl;
+
+
+            yieldstress_alloy(i_pc, i_OF, i_eps, :, :, :, :, :, :) = getYieldStress(squeeze(Twg(i_pc, i_OF, i_eps, :, :, :, :, :, :)));
+                
+            % Find q at axial nodes
+            % Go from intersection of nozzle_parabolic and nozzle_circular
+            %   up to intersection of chamber_circular and
+            %   chamber_parabolic, only for nominal engine profile
+            % First engine iteration only
+
+            if i_pc == 1 && i_OF == 1 && i_eps == 1
+                q_grad = [squeeze(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :))'; zeros(1, length(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :)))];
+
+                % Loop
+                % But some things are constant
+                dH_channels_station = dH_channels(1, 1, 1, 1, 1, 1);
+                mdot_channel_station = mdot_channel(1, 1, 1, 1, 1, 1);
+                rho_coolant_station = rho_coolant(1, 1, 1, 1, 1, 1);
+                k_coolant_station = k_coolant(1, 1, 1, 1, 1, 1);
+                mu_coolant_station = mu_coolant(1, 1, 1, 1, 1, 1);
+                coolant_vel_station = coolant_vel(1, 1, 1, 1, 1, 1);
+                A_channel_station = A_channel_range(1, 1, 1, 1, 1, 1);
+                mdot_flow = mdot_range(1, 1, 1, 1, 1, 1);
+
+                Re_coolant_station = Re_coolant(1, 1, 1, 1, 1, 1);
+                Pr_coolant_station = Pr_coolant(1, 1, 1, 1, 1, 1);
+                % Exponent on Pr_coolant is .4 bc fluid is being heated - https://www.sciencedirect.com/topics/engineering/dittus-boelter-correlation?
+                NU_coolant_station = .023 .* Re_coolant_station.^.8 .* Pr_coolant_station.^.4;
+                bool_laminar_station = Re_coolant_station <= ReD_critical;
+                if bool_laminar_station % only valid for laminar
+                    hl_station = .023 .* cp_eth_avg .* mdot_channel_station ./ A_channel_station .* Re_coolant_station.^-.2 .* (mu_coolant_station .* cp_eth_avg ./ k_coolant_station).^(-2./3);
+                else % Dittus Boelter correlation, used with caution from Re = 2300 to Re = 10k, above 10k it's pretty good
+                    hl_station = NU_coolant_station .* k_coolant_station ./ dH_channels_station;
+                end
+
+                cross_areas = area_ratios .* squeeze(At(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1));
+
+                for i_station = 1:length(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :))
+                    % Get flow_vel_station
+                    flow_vel_station = axial_vel_grad(2, i_station);
+                    cross_area_station = cross_areas(i_station);
+                    flow_rho_station = mdot_flow ./ cross_area_station ./ flow_vel_station;
+                    mu_flow_station = mu_flow_grad(2, i_station);
+                    k_flow_station = k_flow_grad(2, i_station);
+                    Pr_flow_station = Pr_flow_grad(2, i_station);
+                    d_chamber_station = (cross_area_station ./ pi .* 4).^.5;
+                    hg_station = .023 .* (flow_rho_station .* flow_vel_station).^.8 ./ d_chamber_station.^.2 .* Pr_flow_station.^.4 .* k_flow_station ./ mu_flow_station.^.8;
+                    
+                    temp_flow_station = axial_temp_grad(2, i_station);
+                   
+                    lumped_TR_station = (1 ./ hg_station + wall_t_range(1, 1, 1, 1, 1, 1) ./ k_wall_range(1, 1, 1, 1, 1, 1) + 1 ./ hl_station ./ ((d_chamber_station + wall_t_range(1, 1, 1, 1, 1, 1)) ./ d_chamber_station));
+                    q_grad(2, i_station) = (temp_flow_station - T_coolant_i_range(1, 1, 1, 1, 1, 1)) ./ lumped_TR_station;
+                end      
+            end           
 
             % For now, this is just approximated using the throat heat
             %   transfer
@@ -947,8 +1035,10 @@ end
 function yieldStress = getYieldStress(temp)
     % Data sheet on material properties for AlSi10Mg - https://fathommfg.com/wp-content/uploads/2020/11/EOS_Aluminium_AlSi10Mg_en.pdf
     % MPa to Pa (270 +- 10) - heat treated would be 245, 230 +- 15
-    % Also got these tabulated value from "The variation of the yield stress vs
-    %   temperature for experimented materials"
+    
+    % Also got these tabulated value from:
+    % "The variation of the yield stress vs temperature for experimented materials"
+
     % K to deg C
     temp = temp - 273.15;
     % deg C, MPa
