@@ -876,8 +876,42 @@ for i_pc = 1:length(pc_range)
                     
                     temp_flow_station = axial_temp_grad(2, i_station);
                    
-                    lumped_TR_station = (1 ./ hg_station + wall_t_range(1, 1, 1, 1, 1, 1) ./ k_wall_range(1, 1, 1, 1, 1, 1) + 1 ./ hl_station ./ ((d_chamber_station + wall_t_range(1, 1, 1, 1, 1, 1)) ./ d_chamber_station));
-                    q_grad(2, i_station) = (temp_flow_station - T_coolant_i_range(1, 1, 1, 1, 1, 1)) ./ lumped_TR_station;
+                    % Thermal resistances
+                    h_flow_wall_convection_station = Geth();
+                    r_0_flow_wall_convection_station = 1;
+                    r_1_flow_wall_convection_station = 1;
+                    TR_flow_wall_convection_station = ...
+                        GetThermalResistance(heat_transfer_type = ...
+                            "convection", ...
+                        h = h_flow_wall_convection_station, ...
+                        r_0 = r_0_flow_wall_convection_station, ...
+                        r_1 = r_1_flow_wall_convection_station);
+
+
+                    k_innerwall_innerwall_conduction_station
+                    r_0_innerwall_innerwall_conduction_station
+                    r_1_innerwall_innerwall_conduction_station
+                    r_2_innerwall_innerwall_conduction_station
+                    
+                    
+                    TR_innerwall_innerwall_conduction_station = ...
+                        GetThermalResistance(k = ...
+                        k_innerwall_innerwall_conduction_station);
+
+
+                    TR_innerwall_coolant_convection_station = 1;
+                    TR_coolant_outerwall_convection_station = 1;
+                    TR_outerwall_outerwall_conduction_station = 1;
+                    TR_outerwall_air_convection_station = 1;
+
+                    % TR_lumped_station = TR_flow_wall_convection_station +
+                    %   TR_innerwall_innerwall_conduction_station +
+                    %   TR_innerwall_coolant_convection_station +
+                    %   TR_coolant_outerwall_convection_station +
+                    %   TR_outerwall_outerwall_conduction_station +
+                    %   TR_outerwall_air_convection_station;
+                    TR_lumped_station = (1 ./ hg_station + wall_t_range(1, 1, 1, 1, 1, 1) ./ k_wall_range(1, 1, 1, 1, 1, 1) + 1 ./ hl_station ./ ((d_chamber_station + wall_t_range(1, 1, 1, 1, 1, 1)) ./ d_chamber_station));
+                    q_grad(2, i_station) = (temp_flow_station - T_coolant_i_range(1, 1, 1, 1, 1, 1)) ./ TR_lumped_station;
                 end      
             end           
 
@@ -1093,42 +1127,55 @@ function k = Getk(material_name, T)
     k = interp1(Ts, ks, T);
 end
 
-% Calculates h for different sections in the rocket
-%
-%
-%
-function h = Geth(Re_D, Pr, x, D, material_name, T)
-    % ASSUMES turbulent flow
+% Calculates Nu_D at different axial slices along the chamber
+% ----------
+% ASSUMES turbulent flow
     % Check for:
     %   1) entrance region, OR
     %   2) fully-developed region
-
+% ----------
+% Nu_D = Nusselt number using tube diameter as characteristic length
+% f = friction factor
+% Re_D = Reynold's number using tube diameter as characteristic length
+% Pr = Prandtl number
+% D = tube diameter (m)
+% L = tube length (m)
+% x = position in tube relative to datum (m)
+% ----------
+function Nu_D = GetNu_D(f, Re_D, Pr, D, L, x)
+    
+    % Check if developing
     % Get entrance lengths
     x_fd_t_over_D = GetThermalEntryLength(Re_D, Pr);
     x_fd_h_over_D = GetHydrodynamicEntryLength(Re_D);
 
     x_over_D = x ./ D;
-    % Not vectorized
-    if x_over_D < max(x_fd_t_over_D, x_fd_h_over_D)
-        bool_entrance_region = 1;
-    else
-        bool_entrance_region = 0;
-    end
+    
+    % For vectorization, uses logical multi-dimensional array-indexing
+    % Creates masks
+    x_over_D_developing_mask = x_over_D < max(x_fd_t_over_D, ...
+        x_fd_h_over_D);
+    x_over_D_fully_developed_mask = ~ x_over_D_developing_mask;
 
-    % Entrance region
-    k = 1;
-    Nu_D_bar = k;
+    % Assigns values based on masks
+    D_over_L = zeros(size(x_over_D_fully_developed_mask));
+    D_over_L(x_over_D_developing_mask) = D ./ L;
+    D_over_L(x_over_D_fully_developed_mask) = 0;
 
-    % Fully-developed region
+    % From: Heat Convection 2nd Ed. by Latif M. Jiji
+    %   Page 404, Eq. (10.17) (Gnielinski correlation)
+    Nu_D = ((f ./ 8) .* (Re_D - 1000) .* Pr) ./ (1 + 12.7 .* ...
+        sqrt((f ./ 8)) .* (Pr.^(2 ./ 3) - 1)) .* (1 + D_over_L.^(2 ./ 3));
+end
 
-    % Get friction factor
-    f = 1;
-    % From: Introduction to Heat Transfer 3rd Ed. by Incropera and DeWitt
-    %   Page 413, Eq. (8.63) (Gnielinski correlation)
-    Nu_D = ((f ./ 8) .* (Re_D - 1000) .* Pr) ./ (1 + 12.7 .* (f ./ 8).^(1 ./ 2) .* (Pr.^(2 ./ 3) - 1));
-
-    k = Getk(material_name, T);
-
+% Calculates h for different sections in the rocket (W/m^2-K)
+% ----------
+% Nu_D = Nusselt number using tube diameter as the characteristic length
+% D = tube hydraulic diameter (m)
+% k = thermal conductivity (W/m-K)
+% ----------
+% Vectorized
+function h = Geth(Nu_D, D, k)
     h = Nu_D .* k ./ D;
 end
 
