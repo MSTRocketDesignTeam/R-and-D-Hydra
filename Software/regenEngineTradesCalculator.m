@@ -820,8 +820,10 @@ for i_pc = 1:length(pc_range)
             TR_outerwall_outerwall_conduction = 1;
             TR_outerwall_air_convection = 1;
             % Not modeling any radiation
-            lumped_TR = (1 ./ hg + wall_t_range ./ k_wall_range + 1 ./ hl ./ ((dt + wall_t_range) ./ dt));
-            q(i_pc, i_OF, i_eps, :, :, :, :, :, :) = (squeeze(throat_flow_temp(i_pc, i_OF, i_eps, :, :, :, :, :, :)) - T_coolant_i_range) ./ lumped_TR;
+            
+            % TR_lumped = 
+            TR_lumped = (1 ./ hg + wall_t_range ./ k_wall_range + 1 ./ hl ./ ((dt + wall_t_range) ./ dt));
+            q(i_pc, i_OF, i_eps, :, :, :, :, :, :) = (squeeze(throat_flow_temp(i_pc, i_OF, i_eps, :, :, :, :, :, :)) - T_coolant_i_range) ./ TR_lumped;
             Twg(i_pc, i_OF, i_eps, :, :, :, :, :, :) = squeeze(throat_flow_temp(i_pc, i_OF, i_eps, :, :, :, :, :, :)) - squeeze(q(i_pc, i_OF, i_eps, :, :, :, :, :, :)) ./ hg;
             Twl(i_pc, i_OF, i_eps, :, :, :, :, :, :) = T_coolant_i_range + squeeze(q(i_pc, i_OF, i_eps, :, :, :, :, :, :)) ./ hl;
 
@@ -901,7 +903,7 @@ for i_pc = 1:length(pc_range)
     end
 end
 % min coolant press to prevent it boiling in the channels (w/in DF)
-P_coolant_min = fpvapeth(T_coolant_f) ./ DF_p_coolant;
+P_coolant_min = GetVaporizationPressure(T_coolant_f) ./ DF_p_coolant;
 therm_stress(:, :, :, :, :, :, :, :, :) = E_alloy .* alpha_alloy .* (Twg - Twl);
 
 % Get runtime diagnostics
@@ -970,27 +972,19 @@ save(filename_datastorage, "axial_temp_grad", "T_AlSi10Mg_melt", "T_w_max", "yie
 
 
 %% More complex functions
-% Bartz Correlation from Huzel and Huang
-% D_t: throat diameter, in
-% mu: viscosity, lbm/ft-sec
-% C_p: gas specifict heat capacity at constant pressure, Btu/lbm-degF
-% Pr: Prandtl number
-% p_c_ns: chamber pressure at this nozzle station, lbf/in^2
-% g: gravitational acceleration, ft/s^2
-% cstar: characteristic velocity, ft/s
-% R: curvature of circular portion of the nozzle, in
-% At: throat area
-% A: area at this nozzle stations
-% sigma: "Correction factor for property variations across boundary layer"
-function Bartz_hg = fGetBartzhg()
-    (.026 ./ dt.^.2 * (mu_flow_t.^.2 .* cp_flow_t ./ Pr_flow_t.^.6) .* (pc_t .* g ./ squeeze(cstar(i_pc, i_OF, i_eps, :, :, :, :, :, :))).^.8 .* (dt ./ squeeze(R1(i_pc, i_OF, i_eps, :, :, :, :, :, :))))
 
+% Reshape summation arrays for vector size compatibility during
+%   parallelization
+function reshaped_summation_array = getReshapedSummationArray(summation_array, num_dimensions)
+    reshaped_summation_array = reshape(summation_array, [ones(1, num_dimensions) numel(summation_array)]);
 end
 
 % For vaporization pressure calclulation to check coolant doesn't boil in
 % coolant channels
 % antoine equation (T in K) - source: NIST, pvapeth in Pa
-function pvapeth = fpvapeth(T)
+function p_vap_eth = GetVaporizationPressure(T)
+
+    % Only works for ethanol right now
     Tcrit_eth = 513.91;
 
     idxslw = T < 273.15;
@@ -1000,10 +994,10 @@ function pvapeth = fpvapeth(T)
     idxshgh = Tcrit_eth <= T;
     idxsvalid = idxs1 | idxs2 | idxs3;
 
-    pvapeth = nan(size(T));
-    A = pvapeth;
-    B = pvapeth;
-    C = pvapeth;
+    p_vap_eth = nan(size(T));
+    A = p_vap_eth;
+    B = p_vap_eth;
+    C = p_vap_eth;
 
     A(idxs1) = 5.37229;
     B(idxs1) = 1670.409;
@@ -1018,14 +1012,182 @@ function pvapeth = fpvapeth(T)
     C(idxs3) = -61.819;
 
     if any(idxslw)
-        warning("some input T's too low in fpvapeth function");
+        warning("some input T's too low in GetVaporizationPressure function");
     end
     if any(idxshgh)
         warning("some input T's above T crit eth");
     end
 
     % bar to Pa
-    pvapeth(idxsvalid) = 10.^(A(idxsvalid) - B(idxsvalid) ./ (T(idxsvalid) + C(idxsvalid))) .* 10.^5;
+    p_vap_eth(idxsvalid) = 10.^(A(idxsvalid) - B(idxsvalid) ./ (T(idxsvalid) + C(idxsvalid))) .* 10.^5;
+end
+
+% Calculates thermal resistance for different sections in the rocket
+%   heat_transfer_type = "conduction" or "convection"
+%   k = conductive heat transfer coefficient
+%   h = convective heat transfer coefficient
+%   r_0 = reference radius for which basis q_s_flux is defined
+%   r_1 =
+%       For conduction: starting radius
+%       For convection: boundary radius
+%   r_2 = ending radius
+function TR = GetThermalResistance(heat_transfer_type, k, h, r_0, r_1, r_2)
+
+    % Check heat transfer type
+    if strcmp(heat_transfer_type, "conduction")
+
+        % Check inputs
+        if ~exist("k", "var")
+            error("Missing input for 'k' parameter");
+        end
+        if ~exist("r_2", "var")
+            error("Missing input for 'r_2' parameter");
+        end
+
+        TR = 1 ./ k .* r_0 .* log(r_2 ./ r_1);
+    elseif strcmp(heat_transfer_type, "convection")
+
+        % Check inputs
+        if ~exist("h", "var")
+            error("Missing input for 'h' parameter");
+        end
+
+        TR = 1 ./ h .* r_0 ./ r_1;
+    else % Invalid heat_convection_type
+        error("Invalid input for 'heat_convection_type' parameter")
+    end
+end
+
+% Calculates k of an alloy
+% alloy_name = name of alloy as a string
+% T = temperature at which k is to be calculated (Kelvin)
+function k = Getk(material_name, T)
+    material_names = ["AlSi10Mg"];
+
+    % Check input
+    if ~contains(material_name, material_names)
+        error("Invalid 'alloy_name' parameter: '%s'", material_name);
+    end
+
+    % K to deg C for data parsing
+    T = T - 273.15;
+
+    switch material_name
+        case "AlSi10Mg"
+            Ts = [0;
+                  25;
+                  200;
+                  400;
+                  10000];
+
+            % Averaging values for horizontal direction for 99 % and 99.5 %
+            %   densities
+            ks = [(115 + 122) ./ 2;
+                  (115 + 122) ./ 2;
+                  (114 + 140) ./ 2;
+                  (141 + 187) ./ 2;
+                  (141 + 187) ./ 2];
+    end
+
+    % Linearly interpolate ks using T to get k
+    k = interp1(Ts, ks, T);
+end
+
+% Calculates h for different sections in the rocket
+%
+%
+%
+function h = Geth(Re_D, Pr, x, D, material_name, T)
+    % ASSUMES turbulent flow
+    % Check for:
+    %   1) entrance region, OR
+    %   2) fully-developed region
+
+    % Get entrance lengths
+    x_fd_t_over_D = GetThermalEntryLength(Re_D, Pr);
+    x_fd_h_over_D = GetHydrodynamicEntryLength(Re_D);
+
+    x_over_D = x ./ D;
+    % Not vectorized
+    if x_over_D < max(x_fd_t_over_D, x_fd_h_over_D)
+        bool_entrance_region = 1;
+    else
+        bool_entrance_region = 0;
+    end
+
+    % Entrance region
+    k = 1;
+    Nu_D_bar = k;
+
+    % Fully-developed region
+
+    % Get friction factor
+    f = 1;
+    % From: Introduction to Heat Transfer 3rd Ed. by Incropera and DeWitt
+    %   Page 413, Eq. (8.63) (Gnielinski correlation)
+    Nu_D = ((f ./ 8) .* (Re_D - 1000) .* Pr) ./ (1 + 12.7 .* (f ./ 8).^(1 ./ 2) .* (Pr.^(2 ./ 3) - 1));
+
+    k = Getk(material_name, T);
+
+    h = Nu_D .* k ./ D;
+end
+
+% Internal flow thermal entry length (nondimensionalized)
+% From: Introduction to Heat Transfer 3rd Ed. by Incropera and DeWitt
+%   Page 393, Eq. (8.23)
+% in x_fd_t_over_D:
+%   x = axial distance from datum
+%   fd = fully developed
+%   t = thermal
+%   D = diameter of tube (for nondimensionalization)
+function x_fd_t_over_D = GetThermalEntryLength(Re_D, Pr)
+
+    % Determine if flow is laminar or turbulent
+    % Not vectorized
+    Re_D_transition = 2300;
+    if Re_D <= Re_D_transition
+
+        x_fd_t_over_D = .05 .* Re_D .* Pr;
+    else
+        % From Fundamentals of Thermal Fluid Sciences by Cengel and Turner
+        %   Page 760, Eq. (17-42)
+        %   in L_t_t:
+        %       L = length
+        %       t_t = thermal_turbulent
+        %   I slightly rearranged it to exclude D so that it would be a
+        %       nondimensionalized value
+        L_t_t = 4.4 .* D .* Re_D.^(1 ./ 6);
+        x_fd_t_over_D = L_t_t;
+    end
+end
+
+% Internal flow hydrodynamic entry length (nondimensionalized)
+% From: Introduction to Heat Transfer 3rd Ed. by Incropera and DeWitt
+%   Page 389, Eq. (8.3)
+% in x_fd_h_over_D:
+%   x = axial distance from datum
+%   fd = fully developed
+%   h = hydrodynamic
+%   D = diameter of tube (for nondimensionalization)
+function x_fd_h_over_D = GetHydrodynamicEntryLength(Re_D)
+    
+    % Determine if flow is laminar or turbulent
+    % Not vectorized
+    Re_D_transition = 2300;
+    if Re_D <= Re_D_transition
+
+        x_fd_h_over_D = .05 .* Re_D;
+    else
+        % From Fundamentals of Thermal Fluid Sciences by Cengel and Turner
+        %   Page 760, Eq. (17-42)
+        %   in L_h_t:
+        %       L = length
+        %       h_t = hydrodynamic_turbulent
+        %   I slightly rearranged it to exclude D so that it would be a
+        %       nondimensionalized value
+        L_h_t = 4.4 .* Re_D.^(1 ./ 6);
+        x_fd_h_over_D = L_h_t;
+    end
 end
 
 % Assuming material is AlSi10Mg
@@ -1060,23 +1222,18 @@ function yieldStress = getYieldStress(temp)
     yieldStress = interp1(temps, stresses, temp);
 end
 
-% Reshape summation arrays for vector size compatibility during
-%   parallelization
-function reshaped_summation_array = getReshapedSummationArray(summation_array, num_dimensions)
-    reshaped_summation_array = reshape(summation_array, [ones(1, num_dimensions) numel(summation_array)]);
+% Bartz Correlation from Huzel and Huang
+% D_t: throat diameter, in
+% mu: viscosity, lbm/ft-sec
+% C_p: gas specifict heat capacity at constant pressure, Btu/lbm-degF
+% Pr: Prandtl number
+% p_c_ns: chamber pressure at this nozzle station, lbf/in^2
+% g: gravitational acceleration, ft/s^2
+% cstar: characteristic velocity, ft/s
+% R: curvature of circular portion of the nozzle, in
+% At: throat area
+% A: area at this nozzle stations
+% sigma: "Correction factor for property variations across boundary layer"
+function Bartz_hg = fGetBartzhg()
+    (.026 ./ dt.^.2 * (mu_flow_t.^.2 .* cp_flow_t ./ Pr_flow_t.^.6) .* (pc_t .* g ./ squeeze(cstar(i_pc, i_OF, i_eps, :, :, :, :, :, :))).^.8 .* (dt ./ squeeze(R1(i_pc, i_OF, i_eps, :, :, :, :, :, :))))
 end
-
-% For making the code able to be run as both a scalar calculator AND a
-%   vectorized, parallelized monster
-% function fx
-%     reshape(A, [size(A, N+1), size(A, (N+2):max(N+2, ndims(A)))])
-% 
-%     % Slicing creates 3 leading singleton dimensions; psqueeze(..., 3) removes them
-%     sonic_slice = psqueeze(flow_sonic(i_pc, i_OF, i_eps, :, :, :, :, :, :), 3);
-% 
-%     % Perform your parallel math (dimensions 4-9 are preserved exactly)
-%     result = mdot_range ./ sonic_slice ./ throat_flow_density;
-% 
-%     % Assign back using (:) to bypass shape-matching headaches
-%     At(i_pc, i_OF, i_eps, :, :, :, :, :, :) = result(:);
-% end
