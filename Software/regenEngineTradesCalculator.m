@@ -877,26 +877,26 @@ for i_pc = 1:length(pc_range)
                     temp_flow_station = axial_temp_grad(2, i_station);
                    
                     % Thermal resistances
-                    h_flow_wall_convection_station = Geth();
-                    r_0_flow_wall_convection_station = 1;
-                    r_1_flow_wall_convection_station = 1;
-                    TR_flow_wall_convection_station = ...
-                        GetThermalResistance(heat_transfer_type = ...
-                            "convection", ...
-                        h = h_flow_wall_convection_station, ...
-                        r_0 = r_0_flow_wall_convection_station, ...
-                        r_1 = r_1_flow_wall_convection_station);
-
-
-                    k_innerwall_innerwall_conduction_station
-                    r_0_innerwall_innerwall_conduction_station
-                    r_1_innerwall_innerwall_conduction_station
-                    r_2_innerwall_innerwall_conduction_station
-                    
-                    
-                    TR_innerwall_innerwall_conduction_station = ...
-                        GetThermalResistance(k = ...
-                        k_innerwall_innerwall_conduction_station);
+                    % h_flow_wall_convection_station = Geth();
+                    % r_0_flow_wall_convection_station = 1;
+                    % r_1_flow_wall_convection_station = 1;
+                    % TR_flow_wall_convection_station = ...
+                    %     GetThermalResistance(heat_transfer_type = ...
+                    %         "convection", ...
+                    %     h = h_flow_wall_convection_station, ...
+                    %     r_0 = r_0_flow_wall_convection_station, ...
+                    %     r_1 = r_1_flow_wall_convection_station);
+                    % 
+                    % 
+                    % k_innerwall_innerwall_conduction_station
+                    % r_0_innerwall_innerwall_conduction_station
+                    % r_1_innerwall_innerwall_conduction_station
+                    % r_2_innerwall_innerwall_conduction_station
+                    % 
+                    % 
+                    % TR_innerwall_innerwall_conduction_station = ...
+                    %     GetThermalResistance(k = ...
+                    %     k_innerwall_innerwall_conduction_station);
 
 
                     TR_innerwall_coolant_convection_station = 1;
