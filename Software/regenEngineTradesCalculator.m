@@ -947,12 +947,12 @@ for i_pc = 1:length(pc_range)
                     TR_outerwall_outerwall_conduction_station = 1;
 
 
-                    TR_outerwall_air_convection_station = ...
-                        GetThermalResistance(heat_transfer_type = ...
-                            "free convection", ...
-                        h = 1, ...
-                        r_0 = r_engine_station, ...
-                        r_1 = 1);
+                    % TR_outerwall_air_convection_station = ...
+                    %     GetThermalResistance(heat_transfer_type = ...
+                    %         "free convection", ...
+                    %     h = 1, ...
+                    %     r_0 = r_engine_station, ...
+                    %     r_1 = 1);
 
                     % TR_lumped_station = TR_flow_wall_convection_station +
                     %   TR_innerwall_innerwall_conduction_station +
@@ -1133,7 +1133,7 @@ function TR = GetThermalResistance(args)
     % Makes variables out of args' fieldnames
     for i_fieldname = 1:length(arg_name_list)
         arg_name = arg_name_list{i_fieldname};
-        eval(append(arg_name, " = args.(arg_name)"));
+        eval(append(arg_name, " = args.(arg_name);"));
     end
 
     % Check heat transfer type
@@ -1239,7 +1239,7 @@ function Nu_D = GetNu_D(args)
     % Makes variables out of args' fieldnames
     for i_fieldname = 1:length(arg_name_list)
         arg_name = arg_name_list{i_fieldname};
-        eval(append(arg_name, " = args.(arg_name)"));
+        eval(append(arg_name, " = args.(arg_name);"));
     end
 
     % Avoid divide by zero error if L = 0
