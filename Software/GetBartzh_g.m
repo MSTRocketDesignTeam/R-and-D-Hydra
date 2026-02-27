@@ -77,7 +77,7 @@ function h_g = mfilename(args)
 
     %% Calculations
     % Get Bartz Correlation (yields h_g in Btu/in^2-sec-deg F)
-    h_g = ((.026 ./ D_t.^.2) .* (mu.^2 .* c_p ./ Pr.^.6) .* (p_c .* g ./ c_star).^.8 .* (D_t ./ R).^.1) .* (A_t ./ A).^.9 .* sigma;
+    h_g = ((.026 ./ D_t.^.2) .* (mu.^.2 .* c_p ./ Pr.^.6) .* (p_c .* g ./ c_star).^.8 .* (D_t ./ R).^.1) .* (A_t ./ A).^.9 .* sigma;
 
     % Btu/in^2-sec-deg F to J/m^2-sec-K
     h_g = h_g .* 1055.06 ./ 0.0254.^2 ./ (5 ./ 9);
