@@ -69,8 +69,8 @@ E_alloy = 68E9;
 alpha_alloy = 27E-6;
 % in to m
 % l_channel = 5 .* .0254;
-numelsnoz = 10;
-numsectionsnoz = 5;
+% From Ben's AlSi10Mg material data spreadsheet
+epsilon_alloy = 12E-6; % surface roughness, m
 
 %% Independent, Variable Parameters
 % pc_c                        chamber pressure
@@ -347,9 +347,9 @@ num_stations_nozzle_parabolic = 100;
 num_stations_engine = sum([num_stations_nozzle_parabolic, ...
     num_stations_nozzle_circular, num_stations_chamber_circular, ...
     num_stations_chamber_parabolic, num_stations_chamber_linear]);
-
 r_engine = zeros([range_lengths, num_stations_engine]);
 z_engine = zeros([range_lengths, num_stations_engine]);
+
 L_nozzle_parabolic = zeros(range_lengths);
 Re = zeros(range_lengths);
 thetaN = zeros(range_lengths);
@@ -526,7 +526,7 @@ for i_pc = 1:length(pc_range)
             
             % Basically makes a linspace from 0 to L_nozzle_circular's
             %   value at every index in L_nozzle_circular
-            z_nozzle_circular = getReshapedSummationArray(linspace(0, 1, numels_chamber_circular), num_dims_small);
+            z_nozzle_circular = getReshapedSummationArray(linspace(0, 1, num_stations_chamber_circular), num_dims_small);
             z_nozzle_circular = z_nozzle_circular .* L_nozzle_circular;
 
             rc = Rt + squeeze(R1(i_pc, i_OF, i_eps, :, :, :, :, :, :));
@@ -564,7 +564,7 @@ for i_pc = 1:length(pc_range)
     
                 L_chamber_circular = squeeze(R1p(i_pc, i_OF, i_eps, :, :, :, :, :, :)) .* sin(squeeze(alpha(i_pc, i_OF, i_eps, :, :, :, :, :, :)));
     
-                z_chamber_circular = getReshapedSummationArray(linspace(0, 1, numelsnoz), num_dims_small);
+                z_chamber_circular = getReshapedSummationArray(linspace(0, 1, num_stations_chamber_circular), num_dims_small);
                 z_chamber_circular = z_chamber_circular .* L_chamber_circular;
     
                 rc = Rt + squeeze(R1p(i_pc, i_OF, i_eps, :, :, :, :, :, :));
@@ -585,7 +585,7 @@ for i_pc = 1:length(pc_range)
                 Re(i_pc, i_OF, i_eps, :, :, :, :, :, :) = expansion_ratio.^.5 .* Rt; 
                 L_nozzle_parabolic(i_pc, i_OF, i_eps, :, :, :, :, :, :) = L_nozzle - L_nozzle_circular;
     
-                z_nozzle_parabolic = getReshapedSummationArray(linspace(0, 1, numelsnoz), num_dims_small);
+                z_nozzle_parabolic = getReshapedSummationArray(linspace(0, 1, num_stations_nozzle_parabolic), num_dims_small);
                 z_nozzle_parabolic = z_nozzle_parabolic .* squeeze(L_nozzle_parabolic(i_pc, i_OF, i_eps, :, :, :, :, :, :));
     
                 % Nonlinear three variable system - solved by hand
@@ -845,6 +845,20 @@ for i_pc = 1:length(pc_range)
                 cross_areas = area_ratios .* squeeze(At(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1));
                 z_engine_slice = z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :);
                 r_engine_slice = r_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :);
+                wall_t_station = squeeze(wall_t_range(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1));
+                k_wall_station = squeeze(k_wall_range(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1));
+                D_channel_station = dH_channels(1, 1, 1, 1, 1, 1);
+
+                % Calculate channel length
+                % Creates array of cumsum values
+                L_channel = cumsum(sqrt(diff(z_engine_slice).^2 + diff(r_engine_slice).^2));
+                % Takes cumsum at end, the total length of all the mini arc
+                %   lengths
+                L_channel = L_channel(end);
+
+                % Set original x value along channel to L_channel - starts
+                %   at injector
+                x_station = L_channel;
 
                 % Still in rework
                 rho_coolant_station = rho_coolant(1, 1, 1, 1, 1, 1);
@@ -853,6 +867,7 @@ for i_pc = 1:length(pc_range)
                 coolant_vel_station = coolant_vel(1, 1, 1, 1, 1, 1);
                 Re_coolant_station = Re_coolant(1, 1, 1, 1, 1, 1);
                 Pr_coolant_station = Pr_coolant(1, 1, 1, 1, 1, 1);
+                T_coolant_i_station = T_coolant_i_range(1, 1, 1, 1, 1, 1);
                 % Exponent on Pr_coolant is .4 bc fluid is being heated - https://www.sciencedirect.com/topics/engineering/dittus-boelter-correlation?
                 NU_coolant_station = .023 .* Re_coolant_station.^.8 .* Pr_coolant_station.^.4;
                 bool_laminar_station = Re_coolant_station <= Re_D_critical;
@@ -880,110 +895,166 @@ for i_pc = 1:length(pc_range)
                     % Re_D_flow_station = Re_D_flow_grad(2, i_station);
                     d_chamber_station = (A_station ./ pi .* 4).^.5;
                     temp_flow_station = axial_temp_grad(2, i_station);
+                    z_engine_station = z_engine_slice(i_station);
+                    r_engine_station = r_engine_slice(i_station);
+                    D_station = 2 .* r_engine_station;
                     
                     % Still in rework
                     hg_station = .023 .* (flow_rho_station .* flow_vel_station).^.8 ./ d_chamber_station.^.2 .* Pr_flow_station.^.4 .* k_flow_station ./ mu_flow_station.^.8;
 
-                    z_engine_station = z_engine_slice(i_station);
-                    % x must be distance from datum, which is injector
-                    %   faceplate
-                    x = z_engine_station(end) - z_engine_station;
-                    r_engine_station = r_engine_slice(i_station);
+                    %% q calculation
+                    % Must guess T_wg and iterate to converge to reasonably
+                    %   accurate q
+                    T_wg_guess = T_flow_station .* .5;
+                    % Tolerance for diff between T_wg_guess and T_wg_calc
+                    %   (K)
+                    tol_T_wgs = 5;
+                    for i_T_wg_guess = 1:20
 
-                    D_station = 2 .* r_engine_station;
+                        %% Flow-Wall Convection TR
+                        % Bartz correlation boundary layer correction factor
+                        sigma_flow_wall_convection_station = ...
+                            GetBartzCorrectionFactor(T_wg = T_wg_guess, ...
+                            T_c = T_flow_station, ...
+                            gammay = throat_flow_gamma, ...
+                            M = mach_flow_station);
+    
+                        % Local radius of curvature of the wall
+                        % Remember i_station iterates by -1
+                        if i_station ~= 1
+                            dy = z_engine_slice(i_station) - z_engine_slice(i_station - 1);
+                            dx = r_engine_slice(i_station) - r_engine_slice(i_station - 1);
+                        else
+                            dy = z_engine_slice(2) - z_engine_slice(1);
+                            dx = r_engine_slice(2) - r_engine_slice(1);
+                        end
+                        % Check if this station is in the straight section,
+                        %   otherwise this could make Bartz greatly overweigh
+                        %   the local curvature radius term's effect. Make the
+                        %   term turn to 1, effectively cancelling it out, if
+                        %   this is the case. Set a tolerance so really large
+                        %   R's are also ignored. Can cancel out term by
+                        %   setting radius of curvature to chamber diameter
+                        % dx should be more than 'tol_R_curv' percent (%) of dy
+                        tol_R_curv = 5;
+                        % Percent (%) to coefficient
+                        tol_R_curv = tol_R_curv / 100;
+                        if abs(dx ./ dy) > tol_R_curv
+                            R_curv_station = GetRadiusOfCurvature(dx = dx, dy = dy);
+                        else
+                            R_curv_station = dt(1, 1, 1, 1, 1, 1);
+                        end
+    
+                        h_flow_wall_convection_station = GetBartzh_g( ...
+                            D_t = dt(1, 1, 1, 1, 1, 1), ...
+                            mu = mu_flow_station, ...
+                            c_p = cp_flow_chamber, ...
+                            Pr = Pr_flow_station, ...
+                            p_c = pc_c, ...
+                            g = g0, ...
+                            c_star = squeeze(cstar(i_pc, i_OF, i_eps, 1, ...
+                                1, 1, 1, 1, 1)), ...
+                            R = R_curv_station, ...
+                            A_t = squeeze(At(i_pc, i_OF, i_eps, 1, 1, 1, ...
+                                1, 1, 1)), ...
+                            A = A_station, ...
+                            sigma = sigma_flow_wall_convection_station);
+    
+                        TR_flow_wall_convection_station = ...
+                            GetThermalResistance(heat_transfer_type = ...
+                                "forced convection", ...
+                            h = h_flow_wall_convection_station, ...
+                            r_0 = r_engine_station, ...
+                            r_1 = r_engine_station);
+    
+                        %% Hotwall-Hotwall Conduction TR
+                        TR_hotwall_hotwall_conduction_station = ...
+                            GetThermalResistance(heat_transfer_type = ...
+                                "conduction", ...
+                            k = k_wall_station, ...
+                            r_0 = r_engine_station, ...
+                            r_1 = r_engine_station, ...
+                            r_2 = r_engine_station + wall_t_station);
+    
+                        %% Hotwall-Coolant Convection TR
+                        % Friction factor
+                        f_hotwall_coolant_convection_station = ...
+                            GetHaalandFrictionFactor(epsilon = ...
+                                epsilon_alloy, ...
+                                D = D_channel_station, ...
+                                Re = Re_coolant_station);
 
+                        % Remember iteration started at injector, which is
+                        %   the end of the channel because we're
+                        %   considering where the chamber flow begins as
+                        %   the datum. So it's basically going backward for
+                        %   the coolant channel analysis
+                        if i_station ~= 1
+                            arc_length_station = cumsum(sqrt((z_engine_station - z_engine_slice(i_station - 1)).^2 + (r_engine_station - r_engine_slice(i_station - 1)).^2));
+                        else
+                            arc_length_station = 0;
+                        end
+                        x_station = x_station - arc_length_station;
 
-                    %% Thermal resistances
+                        Nu_D_hotwall_coolant_convection_station = ...
+                            GetGnielinskiNu_D(f = ...
+                                f_hotwall_coolant_convection_station, ...
+                            Re_D = Re_coolant_station, ...
+                            Pr = Pr_coolant_station, ...
+                            D = D_channel_station, ...
+                            L = L_channel, ...
+                            x = x_station);
 
-                    sigma_flow_wall_convection_station = ...
-                        GetBartzCorrectionFactor(T_wg = 1, ...
-                        T_c = T_flow_station, ...
-                        gamma = throat_flow_gamma, ...
-                        M = mach_flow_station);
+                        h_hotwall_coolant_convection_station = ...
+                            Geth(Nu_D = ...
+                            Nu_D_hotwall_coolant_convection_station, ...
+                            D = D_channel_station, ...
+                            k = k_coolant_station);
+                        
+                        TR_hotwall_coolant_convection_station = ...
+                            GetThermalResistance(heat_transfer_type = ...
+                                "forced convection", ...
+                            h = h_hotwall_coolant_convection_station, ...
+                            r_0 = r_engine_station, ...
+                            r_1 = r_engine_station + wall_t_station);
+    
+                        %% Coolant-Outerwall Convection TR
+                        % TR_coolant_outerwall_convection_station = ...
+                        %     GetThermalResistance();
+    
+                        %% Outerwall-Outerwall Conduction TR
+                        % TR_outerwall_outerwall_conduction_station = ...
+                        %     GetThermalResistance();
+    
+                        %% Outerwall-Ambient Convection TR
+                        % TR_outerwall_air_convection_station = ...
+                        %     GetThermalResistance();
+    
+                        %% Combine TRs and get q, T's
+                        % TR_lumped_station = TR_flow_wall_convection_station +
+                        %   TR_hotwall_hotwall_conduction_station +
+                        %   TR_hotwall_coolant_convection_station +
+                        %   TR_coolant_outerwall_convection_station +
+                        %   TR_outerwall_outerwall_conduction_station +
+                        %   TR_outerwall_air_convection_station;
 
-                    % Remember i_station iterates by -1
-                    if ~i_station == 1
-                        dy = z_engine_slice(i_station) - z_engine_slice(i_station - 1);
-                        dx = r_engine_slice(i_station) - r_engine_slice(i_station - 1);
-                    else
-                        dy = z_engine_slice(2) - z_engine_slice(1);
-                        dx = r_engine_slice(2) - r_engine_slice(1);
+                        TR_lumped_station = ...
+                            (TR_flow_wall_convection_station + ...
+                            TR_hotwall_hotwall_conduction_station + ...
+                            TR_hotwall_coolant_convection_station);
+
+                        q_station = (temp_flow_station - T_coolant_i_station) ./ TR_lumped_station;
+                        T_wg_calc = T_flow_station - q_station ./ h_flow_wall_convection_station;
+                        T_wl = T_coolant_i_station + q_station ./ h_hotwall_coolant_convection_station;
+                        q_grad(2, i_station) = q_station;
+    
+                        %% Check convergence
+                        if abs(T_wg_calc - T_wg_guess) > tol_T_wgs
+                            T_wg_guess = T_wg_guess + .8 .* (T_wg_calc - T_wg_guess);
+                        else
+                            break;
+                        end
                     end
-                    R_curv_station = GetRadiusOfCurvature(dx = dx, dy = dy);
-
-                    h_flow_wall_convection_station = GetBartzh_g( ...
-                        D_t = dt(1, 1, 1, 1, 1, 1), ...
-                        mu = mu_flow_station, ...
-                        c_p = cp_flow_chamber, ...
-                        Pr = Pr_flow_station, ...
-                        p_c = pc_c, ...
-                        g = g0, ...
-                        c_star = squeeze(cstar(i_pc, i_OF, i_eps, 1, ...
-                            1, 1, 1, 1, 1)), ...
-                        R = R_curv_station, ...
-                        A_t = squeeze(At(i_pc, i_OF, i_eps, 1, 1, 1, ...
-                            1, 1, 1)), ...
-                        A = A_station, ...
-                        sigma = sigma_flow_wall_convection_station);
-
-                    TR_flow_wall_convection_station = ...
-                        GetThermalResistance(heat_transfer_type = ...
-                            "forced convection", ...
-                        h = h_flow_wall_convection_station, ...
-                        r_0 = r_engine_station, ...
-                        r_1 = r_engine_station);
-
-
-                    k_innerwall_innerwall_conduction_station = 1;
-                    r_0_innerwall_innerwall_conduction_station = 1;
-                    r_1_innerwall_innerwall_conduction_station = 1;
-                    r_2_innerwall_innerwall_conduction_station = 1;
-
-                    % TR_innerwall_innerwall_conduction_station = ...
-                    %     GetThermalResistance(k = ...
-                    %     k_innerwall_innerwall_conduction_station);
-
-                    TR_innerwall_coolant_convection_station = ...
-                        GetThermalResistance(heat_transfer_type = ...
-                            "forced convection", ...
-                        h = 1, ...
-                        r_0 = r_engine_station, ...
-                        r_1 = 1);
-
-
-                    TR_coolant_outerwall_convection_station = ...
-                        GetThermalResistance(heat_transfer_type = ...
-                            "forced convection", ...
-                        h = 1, ...
-                        r_0 = r_engine_station, ...
-                        r_1 = 1);
-
-
-                    TR_outerwall_outerwall_conduction_station = 1;
-
-                    % TR_outerwall_air_convection_station
-
-                    % Combine TRs
-                    % TR_lumped_station = TR_flow_wall_convection_station +
-                    %   TR_innerwall_innerwall_conduction_station +
-                    %   TR_innerwall_coolant_convection_station +
-                    %   TR_coolant_outerwall_convection_station +
-                    %   TR_outerwall_outerwall_conduction_station +
-                    %   TR_outerwall_air_convection_station;
-
-                    % TR_lumped_station = TR_flow_wall_convection_station +
-                    %   TR_innerwall_innerwall_conduction_station +
-                    %   TR_innerwall_coolant_convection_station;
-
-                    TR_lumped_station = (1 ./ hg_station + wall_t_range(1, 1, 1, 1, 1, 1) ./ k_wall_range(1, 1, 1, 1, 1, 1) + 1 ./ hl_station ./ ((d_chamber_station + wall_t_range(1, 1, 1, 1, 1, 1)) ./ d_chamber_station));
-                    
-                    % Get final q
-                    q_grad(2, i_station) = (temp_flow_station - T_coolant_i_range(1, 1, 1, 1, 1, 1)) ./ TR_lumped_station;
-
-                    % Check convergence
-                    % if true
-                    % 
-                    % end
                 end      
             end           
 
@@ -1128,65 +1199,6 @@ function p_vap_eth = GetVaporizationPressure(T)
     p_vap_eth(idxsvalid) = 10.^(A(idxsvalid) - B(idxsvalid) ./ (T(idxsvalid) + C(idxsvalid))) .* 10.^5;
 end
 
-% Calculates thermal resistance for different sections in the rocket
-%   heat_transfer_type = "conduction", "forced convection", or "free
-%       convection"
-%   k = conductive heat transfer coefficient
-%   h = convective heat transfer coefficient
-%   r_0 = reference radius for which basis q_s_flux is defined
-%   r_1 =
-%       For conduction: starting radius
-%       For convection: boundary radius
-%   r_2 = ending radius
-function TR = GetThermalResistance(args)
-
-    % Allows arguments to be optional and instantiated in the function call
-    %   like: functionname(<varname> = <value>, ...)
-    arguments
-        args.heat_transfer_type = [];
-        args.k = [];
-        args.h = [];
-        args.r_0 = [];
-        args.r_1 = [];
-        args.r_2 = [];
-    end
-    arg_name_list = fieldnames(args);
-
-    % Makes variables out of args' fieldnames
-    for i_fieldname = 1:length(arg_name_list)
-        arg_name = arg_name_list{i_fieldname};
-        eval(append(arg_name, " = args.(arg_name);"));
-    end
-
-    % Check heat transfer type
-    if strcmp(heat_transfer_type, "conduction")
-
-        % Check inputs
-        if ~exist("k", "var")
-            error("Missing input for 'k' parameter");
-        end
-        if ~exist("r_2", "var")
-            error("Missing input for 'r_2' parameter");
-        end
-
-        TR = 1 ./ k .* r_0 .* log(r_2 ./ r_1);
-    elseif strcmp(heat_transfer_type, "forced convection")
-
-        % Check inputs
-        if ~exist("h", "var")
-            error("Missing input for 'h' parameter");
-        end
-
-        TR = 1 ./ h .* r_0 ./ r_1;
-    elseif strcmp(heat_transfer_type, "free convection")
-
-        error("'%s' value for 'heat_transfer_type' parameter not " + ...
-            "yet implemented", heat_transfer_type);
-    else % Invalid heat_transfer_type
-        error("Invalid input for 'heat_transfer_type' parameter")
-    end
-end
-
 % Calculates k of an alloy
 % alloy_name = name of alloy as a string
 % T = temperature at which k is to be calculated (Kelvin)
@@ -1222,77 +1234,6 @@ function k = Getk(material_name, T)
     k = interp1(Ts, ks, T);
 end
 
-
-
-% Calculates h for different sections in the rocket (W/m^2-K)
-% ----------
-% Nu_D = Nusselt number using tube diameter as the characteristic length
-% D = tube hydraulic diameter (m)
-% k = thermal conductivity (W/m-K)
-% ----------
-% Vectorized
-function h = Geth(Nu_D, D, k)
-    h = Nu_D .* k ./ D;
-end
-
-% Internal flow thermal entry length (nondimensionalized)
-% From: Introduction to Heat Transfer 3rd Ed. by Incropera and DeWitt
-%   Page 393, Eq. (8.23)
-% in x_fd_t_over_D:
-%   x = axial distance from datum
-%   fd = fully developed
-%   t = thermal
-%   D = diameter of tube (for nondimensionalization)
-function x_fd_t_over_D = GetThermalEntryLength(Re_D, Pr)
-
-    % Determine if flow is laminar or turbulent
-    % Not vectorized
-    Re_D_transition = 2300;
-    if Re_D <= Re_D_transition
-
-        x_fd_t_over_D = .05 .* Re_D .* Pr;
-    else
-        % From Fundamentals of Thermal Fluid Sciences by Cengel and Turner
-        %   Page 760, Eq. (17-42)
-        %   in L_t_t:
-        %       L = length
-        %       t_t = thermal_turbulent
-        %   I slightly rearranged it to exclude D so that it would be a
-        %       nondimensionalized value
-        L_t_t = 4.4 .* D .* Re_D.^(1 ./ 6);
-        x_fd_t_over_D = L_t_t;
-    end
-end
-
-% Internal flow hydrodynamic entry length (nondimensionalized)
-% From: Introduction to Heat Transfer 3rd Ed. by Incropera and DeWitt
-%   Page 389, Eq. (8.3)
-% in x_fd_h_over_D:
-%   x = axial distance from datum
-%   fd = fully developed
-%   h = hydrodynamic
-%   D = diameter of tube (for nondimensionalization)
-function x_fd_h_over_D = GetHydrodynamicEntryLength(Re_D)
-    
-    % Determine if flow is laminar or turbulent
-    % Not vectorized
-    Re_D_transition = 2300;
-    if Re_D <= Re_D_transition
-
-        x_fd_h_over_D = .05 .* Re_D;
-    else
-        % From Fundamentals of Thermal Fluid Sciences by Cengel and Turner
-        %   Page 760, Eq. (17-42)
-        %   in L_h_t:
-        %       L = length
-        %       h_t = hydrodynamic_turbulent
-        %   I slightly rearranged it to exclude D so that it would be a
-        %       nondimensionalized value
-        L_h_t = 4.4 .* Re_D.^(1 ./ 6);
-        x_fd_h_over_D = L_h_t;
-    end
-end
-
 % Assuming material is AlSi10Mg
 % Vectorized
 % temp is Twg, hot wall temperature, in Kelvin
@@ -1323,86 +1264,4 @@ function yieldStress = getYieldStress(temp)
                 65;
                 65];
     yieldStress = interp1(temps, stresses, temp);
-end
-
-
-
-
-
-
-
-
-
-
-% Calculates darcy friction factor (f) at different axial slices along
-%   chamber
-% ----------
-function f = GetFrictionFactor(D, L, delta_p, rho, u_bar)
-    f = D ./ L .* delta_p ./ (rho .* u_bar.^2 ./ 2);
-end
-
-% Calculates Nu_D at different axial slices along the chamber
-% ----------
-% ASSUMES turbulent flow
-    % Check for:
-    %   1) entrance region, OR
-    %   2) fully-developed region
-% ----------
-% Nu_D = Nusselt number using tube diameter as characteristic length
-% f = friction factor
-% Re_D = Reynold's number using tube diameter as characteristic length
-% Pr = Prandtl number
-% D = tube diameter (m)
-% L = tube length (m)
-% x = position in tube relative to datum (m)
-% ----------
-function Nu_D = GetNu_D(args)
-    
-    % Allows arguments to be optional and instantiated in the function call
-    %   like: functionname(<varname> = <value>, ...)
-    arguments
-        args.f = [];
-        args.Re_D = [];
-        args.Pr = [];
-        args.D = [];
-        args.L = [];
-        args.x = [];
-    end
-    arg_name_list = fieldnames(args);
-
-    % Makes variables out of args' fieldnames
-    for i_fieldname = 1:length(arg_name_list)
-        arg_name = arg_name_list{i_fieldname};
-        eval(append(arg_name, " = args.(arg_name);"));
-    end
-
-    % Avoid divide by zero error if L = 0
-    % Scale tol_low to D
-    tol_low = .01 .* 2.5 .* D;
-    if L == 0
-        L = tol_low;
-    end
-
-    % Check if developing
-    % Get entrance lengths
-    x_fd_t_over_D = GetThermalEntryLength(Re_D, Pr);
-    x_fd_h_over_D = GetHydrodynamicEntryLength(Re_D);
-
-    x_over_D = x ./ D;
-    
-    % For vectorization, uses logical multi-dimensional array-indexing
-    % Creates masks
-    x_over_D_developing_mask = x_over_D < max(x_fd_t_over_D, ...
-        x_fd_h_over_D);
-    x_over_D_fully_developed_mask = ~ x_over_D_developing_mask;
-
-    % Assigns values based on masks
-    D_over_L = zeros(size(x_over_D_fully_developed_mask));
-    D_over_L(x_over_D_developing_mask) = D ./ L;
-    D_over_L(x_over_D_fully_developed_mask) = 0;
-
-    % From: Heat Convection 2nd Ed. by Latif M. Jiji
-    %   Page 404, Eq. (10.17) (Gnielinski correlation)
-    Nu_D = ((f ./ 8) .* (Re_D - 1000) .* Pr) ./ (1 + 12.7 .* ...
-        sqrt((f ./ 8)) .* (Pr.^(2 ./ 3) - 1)) .* (1 + D_over_L.^(2 ./ 3));
 end

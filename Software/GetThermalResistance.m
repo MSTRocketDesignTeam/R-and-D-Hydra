@@ -47,7 +47,7 @@ function TR = mfilename(args)
     elseif strcmp(heat_transfer_type, "forced convection")
 
         % Check inputs
-        if ~exist("h", "var")
+        if isempty(h)
             error("Missing input for 'h' parameter");
         end
 

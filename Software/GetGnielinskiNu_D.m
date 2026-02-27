@@ -47,7 +47,7 @@ function Nu_D = mfilename(args)
 
     % Check if developing
     % Get entrance lengths
-    x_fd_t_over_D = GetThermalEntryLength(Re_D, Pr);
+    x_fd_t_over_D = GetThermalEntryLength(Re_D = Re_D, Pr = Pr, D = D);
     x_fd_h_over_D = GetHydrodynamicEntryLength(Re_D);
 
     x_over_D = x ./ D;

@@ -6,8 +6,35 @@
 %   fd = fully developed
 %   t = thermal
 %   D = diameter of tube (for nondimensionalization)
-function x_fd_t_over_D = mfilename(Re_D, Pr)
+function x_fd_t_over_D = mfilename(args)
 
+    %% Argument handling
+    % Allows arguments to be optional and instantiated in the function call
+    %   like: functionname(<varname> = <value>, ...)
+    arguments
+        args.Re_D = [];
+        args.Pr = [];
+        args.D = [];
+    end
+    
+    arg_name_list = fieldnames(args);
+    optional_var_names = ["D"];
+
+    % Makes variables out of args' fieldnames
+    for i_fieldname = 1:length(arg_name_list)
+        arg_name = arg_name_list{i_fieldname};
+
+        % Input checking
+        if ~isempty(args.(arg_name))
+            eval(append(arg_name, " = args.(arg_name);"));
+        elseif ~ismember(arg_name, optional_var_names)
+            
+            % If any non-optional parameters are empty, throw error
+            error("No input for non-optional '%s' parameter", arg_name);
+        end
+    end
+
+    %% Calculations
     % Determine if flow is laminar or turbulent
     % Not vectorized
     Re_D_transition = 2300;
@@ -15,6 +42,11 @@ function x_fd_t_over_D = mfilename(Re_D, Pr)
 
         x_fd_t_over_D = .05 .* Re_D .* Pr;
     else
+        if isempty(D)
+            arg_name = "D";
+            error("No input for non-optional '%s' parameter", arg_name);
+        end
+        
         % From Fundamentals of Thermal Fluid Sciences by Cengel and Turner
         %   Page 760, Eq. (17-42)
         %   in L_t_t:
