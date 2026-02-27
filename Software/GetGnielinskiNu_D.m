@@ -62,7 +62,6 @@ function Nu_D = mfilename(args)
     D_over_L = zeros(size(x_over_D_fully_developed_mask));
     D_over_L(x_over_D_developing_mask) = D ./ L;
     D_over_L(x_over_D_fully_developed_mask) = 0;
-
     
     Nu_D = ((f ./ 8) .* (Re_D - 1000) .* Pr) ./ (1 + 12.7 .* ...
         sqrt((f ./ 8)) .* (Pr.^(2 ./ 3) - 1)) .* (1 + D_over_L.^(2 ./ 3));
