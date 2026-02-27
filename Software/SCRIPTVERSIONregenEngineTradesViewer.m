@@ -112,7 +112,7 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
         Volumemm3Label_11              matlab.ui.control.Label
         EditFieldRc                    matlab.ui.control.NumericEditField
         Volumemm3Label_10              matlab.ui.control.Label
-        EditFieldL_chamber_circular_narrow  matlab.ui.control.NumericEditField
+        EditFieldL_chamber_parabolic  matlab.ui.control.NumericEditField
         Volumemm3Label_9               matlab.ui.control.Label
         EditFieldalpha                 matlab.ui.control.NumericEditField
         Volumemm3Label_8               matlab.ui.control.Label
@@ -356,7 +356,7 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
             % rad to deg
             alpha = squeeze(alpha(data_indices{:})) .* 180 ./ pi;
             % m to mm
-            L_chamber_circular_narrow = squeeze(L_chamber_circular_narrow(data_indices{:})) .* 10.^3;
+            L_chamber_parabolic = squeeze(L_chamber_parabolic(data_indices{:})) .* 10.^3;
             % m to mm
             Rc  = squeeze(Rc(data_indices{:})) .* 10.^3;
             % m to mm
@@ -1155,10 +1155,10 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
             app.Volumemm3Label_9.Position = [292 165 132 22];
             app.Volumemm3Label_9.Text = 'L_chmb_crc_nrrw (mm)';
 
-            % Create EditFieldL_chamber_circular_narrow
-            app.EditFieldL_chamber_circular_narrow = uieditfield(app.DataTab, 'numeric');
-            app.EditFieldL_chamber_circular_narrow.Editable = 'off';
-            app.EditFieldL_chamber_circular_narrow.Position = [439 165 66 22];
+            % Create EditFieldL_chamber_parabolic
+            app.EditFieldL_chamber_parabolic = uieditfield(app.DataTab, 'numeric');
+            app.EditFieldL_chamber_parabolic.Editable = 'off';
+            app.EditFieldL_chamber_parabolic.Position = [439 165 66 22];
 
             % Create Volumemm3Label_10
             app.Volumemm3Label_10 = uilabel(app.DataTab);
