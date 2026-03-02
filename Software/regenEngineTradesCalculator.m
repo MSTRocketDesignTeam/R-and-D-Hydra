@@ -14,6 +14,8 @@ clear
 py.importlib.import_module("rocketcea");
 % For data export, to be graphed later in MATLAB app
 filename_datastorage = append(pwd, "\regenEngineTradesData.mat");
+% For random data dumping, not related to app
+filename_data_dump = append(pwd, "\randomDataDump.xlsx");
 
 %% Constants
 % g0                        Accel. due to gravity
@@ -30,6 +32,7 @@ filename_datastorage = append(pwd, "\regenEngineTradesData.mat");
 % lchannel                  Conservative estimate of coolant channel length
 %                               (overestimate- leads to overestimating
 %                               minimum required coolant pressure)
+% T_ambient
 
 filename_config = append(pwd, "calculator_config.txt");
 
@@ -71,6 +74,11 @@ alpha_alloy = 27E-6;
 % l_channel = 5 .* .0254;
 % From Ben's AlSi10Mg material data spreadsheet
 epsilon_alloy = 12E-6; % surface roughness, m
+
+% Temperature in mine at startup (used for startup temperature of alloy),
+%   in Kelvin
+% deg C to K
+T_ambient = 21 + 273.15;
 
 %% Independent, Variable Parameters
 % pc_c                        chamber pressure
@@ -268,9 +276,6 @@ flambda0eth = @(T) (-2.09575 + 19.9045 .* fT_r(T, T_crit_eth) - 53.964 .* fT_r(T
 B1_i_eth = [2.67222E-2, 1.48279E-1, -1.30429E-1, 3.46232E-2, -2.44293E-3];
 B2_i_eth = [1.77166E-2, -8.93088E-2, 6.84664E-2, -1.45702E-2, 8.09189E-4];
 is_delta_lambda = 1:5;
-
-psqueeze = @(A, N) reshape(A, [size(A, N+1), size(A, (N+2):max(N+2, ndims(A)))]);
-
 B1_i_eth = getReshapedSummationArray(B1_i_eth, num_dims_big);
 B2_i_eth = getReshapedSummationArray(B2_i_eth, num_dims_big);
 is_delta_lambda = getReshapedSummationArray(is_delta_lambda, num_dims_big);
@@ -834,7 +839,11 @@ for i_pc = 1:length(pc_range)
 
             if i_pc == 1 && i_OF == 1 && i_eps == 1
 
-                q_grad = [squeeze(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :))'; zeros(1, length(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :)))];
+                q_lumped_steady_grad = [squeeze(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :))'; zeros(1, length(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :)))];
+                q_flow_wall_convection_start_grad = q_lumped_steady_grad;
+                q_hotwall_coolant_convection_start_grad = ...
+                    q_lumped_steady_grad;
+
 
                 % Some values are constant for an entire engine
                 %   configuration
@@ -894,7 +903,6 @@ for i_pc = 1:length(pc_range)
                     % Doesn't exist yet
                     % Re_D_flow_station = Re_D_flow_grad(2, i_station);
                     d_chamber_station = (A_station ./ pi .* 4).^.5;
-                    temp_flow_station = axial_temp_grad(2, i_station);
                     z_engine_station = z_engine_slice(i_station);
                     r_engine_station = r_engine_slice(i_station);
                     D_station = 2 .* r_engine_station;
@@ -1043,15 +1051,27 @@ for i_pc = 1:length(pc_range)
                             TR_hotwall_hotwall_conduction_station + ...
                             TR_hotwall_coolant_convection_station);
 
-                        q_station = (temp_flow_station - T_coolant_i_station) ./ TR_lumped_station;
-                        T_wg_calc = T_flow_station - q_station ./ h_flow_wall_convection_station;
-                        T_wl = T_coolant_i_station + q_station ./ h_hotwall_coolant_convection_station;
-                        q_grad(2, i_station) = q_station;
+                        % Split up q calcs for ANSYS model
+                        % Steady state estimation
+                        q_lumped_steady_station = (T_flow_station - T_coolant_i_station) ./ TR_lumped_station;
+                        T_wg_calc = T_flow_station - q_lumped_steady_station .* TR_flow_wall_convection_station;
+                        T_wl = T_coolant_i_station + q_lumped_steady_station .* TR_hotwall_coolant_convection_station;
+                        % q_flow_wall_convection and
+                        %   q_hotwall_coolant_convection will equal
+                        %   q_lumped in steady
+
+                        % Startup estimation
+                        % Hot wall (made of alloy) starts at T_ambient
+                        q_flow_wall_convection_start_station = (T_flow_station - T_ambient) ./ TR_flow_wall_convection_station;
+                        q_hotwall_coolant_convection_station = (T_ambient - T_coolant_i_station) ./ TR_hotwall_coolant_convection_station;
     
                         %% Check convergence
                         if abs(T_wg_calc - T_wg_guess) > tol_T_wgs
                             T_wg_guess = T_wg_guess + .8 .* (T_wg_calc - T_wg_guess);
                         else
+                            q_lumped_steady_grad(2, i_station) = q_lumped_steady_station;
+                            q_flow_wall_convection_start_grad(2, i_station) = q_flow_wall_convection_start_station;
+                            q_hotwall_coolant_convection_start_grad(2, i_station) = q_hotwall_coolant_convection_station;
                             break;
                         end
                     end
@@ -1147,6 +1167,13 @@ contourvalnames = ["vol_engine", "L_nozzle_parabolic", "Re", "thetaN", "xN", "R1
 % Export to mat file for use in app
 save(filename_datastorage, "axial_temp_grad", "T_AlSi10Mg_melt", "T_w_max", "yieldstress_alloy", "yieldstress_max", "list_var_names", "ranges", "pc_range", "OF_range", "expansion_ratio_range", "mdot_range", "d_channel_range", "num_channels_range", "T_coolant_i_range", "wall_t_range", "k_wall_range", "therm_stress", "total_stress_doghouse", "total_stress_fins", "hoop_stress_doghouse", "hoop_stress_fins", "T_coolant_f", "P_coolant_min", "Twg", "Twl", "q", "Isp", "prop_cost_rate", "dt", "cstar", "cstar_theo", "thrust", "de", "eta_cstar", "Vc", "CR", "flow_sonic", "r_engine", "z_engine", "vol_engine", "L_nozzle_parabolic", "Re", "thetaN", "xN", "R1", "R1p", "alpha", "L_chamber_parabolic", "Rc", "L_chamber_linear", "contourvalnames", "TWR");
 
+% Dump random non-app-related data
+cell_data_dump = {"x (mm)", squeeze(z_engine(1, 1, 1, 1, 1, 1, 1, 1, 1, :))'; ...
+                  "q_lumped_steady (W/m^2-K)", q_lumped_steady_grad(2, :); ...
+                  "q_flow_wall_convection_start (W/m^2-K)", q_flow_wall_convection_start_grad(2, :); ...
+                  "q_hotwall_coolant_convection_start (W/m^2-K)", q_hotwall_coolant_convection_start_grad(2, :)};
+delete(filename_data_dump);
+writecell(cell_data_dump, filename_data_dump);
 
 %% More complex functions
 
