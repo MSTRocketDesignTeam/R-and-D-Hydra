@@ -101,7 +101,7 @@ list_var_names = ["pc_c";
                   "wall_t";
                   "k_wall"];
 
-%% Independent Variable Nominal Values
+%% Independent Variable Nominal ValuesT_coolant_nom
 std_var_range = [1, 1.1]';
 high_def_var_range = linspace(.8, 1.2, 3)';
 % std_var_range = highdefvarrange;
@@ -117,12 +117,13 @@ expansion_ratio_nom = 1.8;
 mdot_nom = 1.2 .* .45359237;
 
 % mm to m
-d_channel_nom = .8 .* 1E-3;
+% d_channel_nom = .8 .* 1E-3;
+d_channel_nom = 1.2 .* 1E-3;
 
 num_channels_nom = 48;
 
 % convert deg C to K LATER
-T_coolant_nom = 24;
+T_coolant_nom = T_ambient;
 
 % mm to m
 wall_t_nom = .8 ./ 1000;
@@ -1101,7 +1102,8 @@ for i_pc = 1:length(pc_range)
 end
 % min coolant press to prevent it boiling in the channels (w/in DF)
 P_coolant_min = GetVaporizationPressure(T_coolant_f) ./ DF_p_coolant;
-therm_stress(:, :, :, :, :, :, :, :, :) = E_alloy .* alpha_alloy .* (Twg - Twl);
+% therm_stress(:, :, :, :, :, :, :, :, :) = E_alloy .* alpha_alloy .* (Twg - Twl);
+therm_stress(:, :, :, :, :, :, :, :, :) = E_alloy .* alpha_alloy .* (T_wg_calc - T_wl);
 
 % Get runtime diagnostics
 runtime = toc(runtime)
@@ -1132,6 +1134,10 @@ ranges{8} = ranges{8} .* 10.^3;
 % dependent vars
 % K to deg C
 T_coolant_f = T_coolant_f - 273.15;
+%   Just for debugging rn
+Twg(:, :, :, :, :, :, :, : ,:) = T_wg_calc;
+Twl(:, :, :, :, :, :, :, : ,:) = T_wl;
+
 Twg = Twg - 273.15;
 Twl = Twl - 273.15;
 axial_temp_grad(2, :) = axial_temp_grad(2, :) - 273.15;
