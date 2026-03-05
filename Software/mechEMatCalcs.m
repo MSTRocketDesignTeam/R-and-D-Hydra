@@ -30,6 +30,6 @@ chamber_stress = F_all_bolts ./ (2 .* wall_thickness .* E_min .* Num_bolts)
 
 % Hoop stress
 %   Using thick-walled cylinder formula
-a =
-b =
+% a =
+% b =
 hoop_stress = press_chamber .* (D_injector)
