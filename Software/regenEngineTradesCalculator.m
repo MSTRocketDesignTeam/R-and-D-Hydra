@@ -117,12 +117,12 @@ expansion_ratio_nom = 1.8;
 mdot_nom = 1.2 .* .45359237;
 
 % mm to m
-% d_channel_nom = .8 .* 1E-3;
-d_channel_nom = 1.2 .* 1E-3;
+d_channel_nom = .8 .* 1E-3;
+% d_channel_nom = 1.2 .* 1E-3;
 
 num_channels_nom = 48;
 
-% convert deg C to K LATER
+% K
 T_coolant_nom = T_ambient;
 
 % mm to m
@@ -153,7 +153,7 @@ num_channels_range = num_channels_nom .* std_var_range;
 T_coolant_i_range = T_coolant_nom .* std_var_range;
 
 % deg C to K
-T_coolant_i_range = T_coolant_i_range + 273.15;
+% T_coolant_i_range = T_coolant_i_range + 273.15;
 
 wall_t_range = wall_t_nom .* std_var_range;
 
@@ -267,7 +267,8 @@ Vc_eth = Zc_eth .* R_universal .* T_crit_eth ./ P_crit_eth;
 rho_crit_eth = 276;
 fT_r = @(T, T_crit) T ./ T_crit;
 % Uses Rackett equation for density
-fDensity = @(rho_crit, Zc, T, T_crit) rho_crit ./ Zc.^(1 - fT_r(T, T_crit));
+% fDensity = @(rho_crit, Zc, T, T_crit) rho_crit ./ Zc.^(1 - fT_r(T, T_crit));
+fDensity = @(mlr_wgt, Vc, Zc, T, T_crit) mlr_wgt ./ (Vc .* Zc.^((1 - fT_r(T, T_crit)).^(2 ./ 7)));
 % -------------------------------------------------------------------------
 % For coolant thermal conductivity calcs later - all these functions are
 % just meant to organize the summation expressions and other things from
@@ -324,10 +325,10 @@ mu_exp_1_act = 8.9382E-6;
 mu_exp_1_calc = fmu_eth(rho_exp_1, T_exp_1);
 
 % Results of interest, things to graph in the app
-therm_stress = zeros(range_lengths);
+
 T_coolant_f = zeros(range_lengths);
 Twg = zeros(range_lengths);
-yieldstress_alloy = zeros(range_lengths);
+
 Twl = zeros(range_lengths);
 q = zeros(range_lengths);
 Isp = zeros(range_lengths);
@@ -355,6 +356,10 @@ num_stations_engine = sum([num_stations_nozzle_parabolic, ...
     num_stations_chamber_parabolic, num_stations_chamber_linear]);
 r_engine = zeros([range_lengths, num_stations_engine]);
 z_engine = zeros([range_lengths, num_stations_engine]);
+yieldstress_alloy = zeros([range_lengths, num_stations_engine]);
+therm_stress = zeros([range_lengths, num_stations_engine]);
+T_wg_grad = zeros([range_lengths, num_stations_engine]);
+T_wl_grad = zeros([range_lengths, num_stations_engine]);
 
 L_nozzle_parabolic = zeros(range_lengths);
 Re = zeros(range_lengths);
@@ -773,7 +778,6 @@ for i_pc = 1:length(pc_range)
                 mu_flow_grad(2, i_AR) = mu_flow_station;
                 k_flow_grad(2, i_AR) = k_flow_station;
                 Pr_flow_grad(2, i_AR) = Pr_flow_station;
-                % Will need grad for Re_D_flow too
             end
 
 
@@ -786,7 +790,7 @@ for i_pc = 1:length(pc_range)
             % Remember it's just fuel in channels
             mdot_channel = mdot_range .* (1 ./ (1 + OF)) ./ num_channels_range;
             % rackett equation used to calc coolant density
-            rho_coolant = fDensity(rho_crit_eth, Zc_eth, T_coolant_i_range, T_crit_eth);
+            rho_coolant = fDensity(mlr_wgt_eth, Vc_eth, Zc_eth, T_coolant_i_range, T_crit_eth);
             k_coolant = fk_eth(rho_coolant, T_coolant_i_range);
             mu_coolant = fmu_eth(rho_coolant, T_coolant_i_range);
             coolant_vel = mdot_channel ./ A_channel_range ./ rho_coolant;
@@ -829,7 +833,7 @@ for i_pc = 1:length(pc_range)
             Twg(i_pc, i_OF, i_eps, :, :, :, :, :, :) = squeeze(throat_flow_temp(i_pc, i_OF, i_eps, :, :, :, :, :, :)) - squeeze(q(i_pc, i_OF, i_eps, :, :, :, :, :, :)) ./ hg;
             Twl(i_pc, i_OF, i_eps, :, :, :, :, :, :) = T_coolant_i_range + squeeze(q(i_pc, i_OF, i_eps, :, :, :, :, :, :)) ./ hl;
 
-            yieldstress_alloy(i_pc, i_OF, i_eps, :, :, :, :, :, :) = getYieldStress(squeeze(Twg(i_pc, i_OF, i_eps, :, :, :, :, :, :)));
+            
                 
             % Will eventually do this for *every* engine configuration
             % Find q at axial stations
@@ -839,12 +843,12 @@ for i_pc = 1:length(pc_range)
             % First engine iteration only (USE NOMINAL VALUES FOR THIS)
 
             if i_pc == 1 && i_OF == 1 && i_eps == 1
+                
 
                 q_lumped_steady_grad = [squeeze(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :))'; zeros(1, length(z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :)))];
                 q_flow_wall_convection_start_grad = q_lumped_steady_grad;
                 q_hotwall_coolant_convection_start_grad = ...
                     q_lumped_steady_grad;
-
 
                 % Some values are constant for an entire engine
                 %   configuration
@@ -856,7 +860,8 @@ for i_pc = 1:length(pc_range)
                 z_engine_slice = z_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :);
                 r_engine_slice = r_engine(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1, :);
                 wall_t_station = squeeze(wall_t_range(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1));
-                k_wall_station = squeeze(k_wall_range(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1));
+                % k_wall_station = squeeze(k_wall_range(i_pc, i_OF, i_eps, 1, 1, 1, 1, 1, 1));
+                
                 D_channel_station = dH_channels(1, 1, 1, 1, 1, 1);
 
                 % Calculate channel length
@@ -915,10 +920,12 @@ for i_pc = 1:length(pc_range)
                     % Must guess T_wg and iterate to converge to reasonably
                     %   accurate q
                     T_wg_guess = T_flow_station .* .5;
+                    k_wall_station = Getk("AlSi10Mg", T_wg_guess);
                     % Tolerance for diff between T_wg_guess and T_wg_calc
                     %   (K)
                     tol_T_wgs = 5;
                     for i_T_wg_guess = 1:20
+                        
 
                         %% Flow-Wall Convection TR
                         % Bartz correlation boundary layer correction factor
@@ -1057,6 +1064,24 @@ for i_pc = 1:length(pc_range)
                         q_lumped_steady_station = (T_flow_station - T_coolant_i_station) ./ TR_lumped_station;
                         T_wg_calc = T_flow_station - q_lumped_steady_station .* TR_flow_wall_convection_station;
                         T_wl = T_coolant_i_station + q_lumped_steady_station .* TR_hotwall_coolant_convection_station;
+
+                        %% Recalculate k_wall_station and downstream calculations
+                        k_wall_station = Getk("AlSi10Mg", .5 .*(T_wg_calc + T_wl));
+                        TR_hotwall_hotwall_conduction_station = ...
+                            GetThermalResistance(heat_transfer_type = ...
+                                "conduction", ...
+                            k = k_wall_station, ...
+                            r_0 = r_engine_station, ...
+                            r_1 = r_engine_station, ...
+                            r_2 = r_engine_station + wall_t_station);
+                        TR_lumped_station = ...
+                            (TR_flow_wall_convection_station + ...
+                            TR_hotwall_hotwall_conduction_station + ...
+                            TR_hotwall_coolant_convection_station);
+                        q_lumped_steady_station = (T_flow_station - T_coolant_i_station) ./ TR_lumped_station;
+                        T_wg_calc = T_flow_station - q_lumped_steady_station .* TR_flow_wall_convection_station;
+                        T_wl = T_coolant_i_station + q_lumped_steady_station .* TR_hotwall_coolant_convection_station;
+
                         % q_flow_wall_convection and
                         %   q_hotwall_coolant_convection will equal
                         %   q_lumped in steady
@@ -1073,6 +1098,8 @@ for i_pc = 1:length(pc_range)
                             q_lumped_steady_grad(2, i_station) = q_lumped_steady_station;
                             q_flow_wall_convection_start_grad(2, i_station) = q_flow_wall_convection_start_station;
                             q_hotwall_coolant_convection_start_grad(2, i_station) = q_hotwall_coolant_convection_station;
+                            T_wg_grad(:, :, :, :, :, :, :, :, :, i_station) = T_wg_calc;
+                            T_wl_grad(:, :, :, :, :, :, :, :, :, i_station) = T_wl;
                             break;
                         end
                     end
@@ -1103,7 +1130,9 @@ end
 % min coolant press to prevent it boiling in the channels (w/in DF)
 P_coolant_min = GetVaporizationPressure(T_coolant_f) ./ DF_p_coolant;
 % therm_stress(:, :, :, :, :, :, :, :, :) = E_alloy .* alpha_alloy .* (Twg - Twl);
-therm_stress(:, :, :, :, :, :, :, :, :) = E_alloy .* alpha_alloy .* (T_wg_calc - T_wl);
+therm_stress(:, :, :, :, :, :, :, :, :, :) = E_alloy .* alpha_alloy .* (T_wg_grad - T_wl_grad);
+% Math is only done for 1st engine- WIP
+yieldstress_alloy(:, :, :, :, :, :, :, :, :, :) = GetYieldStress(T_wg_grad);
 
 % Get runtime diagnostics
 runtime = toc(runtime)
@@ -1271,7 +1300,7 @@ end
 % Vectorized
 % temp is Twg, hot wall temperature, in Kelvin
 % Output is in MPa
-function yieldStress = getYieldStress(temp)
+function yieldStress = GetYieldStress(temp)
     % Data sheet on material properties for AlSi10Mg - https://fathommfg.com/wp-content/uploads/2020/11/EOS_Aluminium_AlSi10Mg_en.pdf
     % MPa to Pa (270 +- 10) - heat treated would be 245, 230 +- 15
     
