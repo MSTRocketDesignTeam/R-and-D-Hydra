@@ -118,7 +118,7 @@ mdot_nom = 1.2 .* .45359237;
 
 % mm to m
 d_channel_nom = .8 .* 1E-3;
-% d_channel_nom = 1.2 .* 1E-3;
+% d_channel_nom = 1.7 .* 1E-3;
 
 num_channels_nom = 48;
 
