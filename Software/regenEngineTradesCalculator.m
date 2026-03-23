@@ -58,7 +58,14 @@ DF_stress = 2;
 DF_temp = 1.5;
 DF_p_coolant = 1.2;
 % g/cc to kg/m^3
-densalloy = 2.665 .* 10.^-3;
+densalloy = 2.665 .* 10.^3;
+% https://www.mdpi.com/2504-4494/6/2/40 I think made a typo, so I asusme
+% they meant kJ instead of J
+%   ->  kJ/kg-deg C = kJ/kg-K
+% Used for time_steady_state estimate. Higher c_p means higher time
+%   estimate
+% c_p_alloy = 0.73E3;
+c_p_alloy = 1.1E3;
 % deg C to K
 T_AlSi10Mg_melt = 570 + 273.15;
 % USD/lbm to USD/kgm
@@ -895,6 +902,8 @@ for i_pc = 1:length(pc_range)
                 % z starts at nozzle and goes to injector, so iterate
                 %   backwards to iterate along developing flow
                 % Iterate through all stations
+                time_to_steady_state_max = 0;
+                time_to_steady_state_min = 10;
                 for i_station = length(z_engine_slice):-1:1
                     
                     % Some values change at every station
@@ -1082,6 +1091,21 @@ for i_pc = 1:length(pc_range)
                         T_wg_calc = T_flow_station - q_lumped_steady_station .* TR_flow_wall_convection_station;
                         T_wl = T_coolant_i_station + q_lumped_steady_station .* TR_hotwall_coolant_convection_station;
 
+                            
+                        % Time to steady state estimate
+                        % delta_u / q = time_to_steady_state % area
+                        %   normalized of course
+                        % change in internal energy, normalized to area
+                        %   just like q_s" is
+                        delta_u = densalloy .* wall_t_station .* c_p_alloy .* (T_flow_station - T_ambient);
+                        time_to_steady_state = delta_u ./ q_lumped_steady_station;
+                        if time_to_steady_state > time_to_steady_state_max
+                            time_to_steady_state_max = time_to_steady_state;
+                        end
+                        if time_to_steady_state < time_to_steady_state_min
+                            time_to_steady_state_min = time_to_steady_state;
+                        end
+
                         % q_flow_wall_convection and
                         %   q_hotwall_coolant_convection will equal
                         %   q_lumped in steady
@@ -1139,6 +1163,8 @@ yieldstress_alloy(:, :, :, :, :, :, :, :, :, :) = GetYieldStress(T_wg_grad);
 runtime = toc(runtime)
 num_engines = prod(range_lengths)
 timeperengine = runtime / num_engines
+time_to_steady_state_max
+time_to_steady_state_min
 
 % Haven't finished doing all the unit conversions yet for imperial system
 % outputs
