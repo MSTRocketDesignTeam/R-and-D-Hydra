@@ -124,8 +124,8 @@ expansion_ratio_nom = 1.8;
 mdot_nom = 1.2 .* .45359237;
 
 % mm to m
-d_channel_nom = .8 .* 1E-3;
-% d_channel_nom = 1.7 .* 1E-3;
+% d_channel_nom = .8 .* 1E-3;
+d_channel_nom = 1.2 .* 1E-3;
 
 num_channels_nom = 48;
 
@@ -1158,6 +1158,7 @@ P_coolant_min = GetVaporizationPressure(T_coolant_f) ./ DF_p_coolant;
 therm_stress(:, :, :, :, :, :, :, :, :, :) = E_alloy .* alpha_alloy .* (T_wg_grad - T_wl_grad);
 % Math is only done for 1st engine- WIP
 yieldstress_alloy(:, :, :, :, :, :, :, :, :, :) = GetYieldStress(T_wg_grad);
+T_wg_grad = T_wg_grad - 273.15;
 
 % Get runtime diagnostics
 runtime = toc(runtime)
@@ -1227,7 +1228,7 @@ vol_engine = vol_engine .* 10.^9;
 contourvalnames = ["vol_engine", "L_nozzle_parabolic", "Re", "thetaN", "xN", "R1", "R1p", "alpha", "L_chamber_parabolic", "Rc", "L_chamber_linear", "dt"];
 
 % Export to mat file for use in app
-save(filename_datastorage, "axial_temp_grad", "T_AlSi10Mg_melt", "T_w_max", "yieldstress_alloy", "yieldstress_max", "list_var_names", "ranges", "pc_range", "OF_range", "expansion_ratio_range", "mdot_range", "d_channel_range", "num_channels_range", "T_coolant_i_range", "wall_t_range", "k_wall_range", "therm_stress", "total_stress_doghouse", "total_stress_fins", "hoop_stress_doghouse", "hoop_stress_fins", "T_coolant_f", "P_coolant_min", "Twg", "Twl", "q", "Isp", "prop_cost_rate", "dt", "cstar", "cstar_theo", "thrust", "de", "eta_cstar", "Vc", "CR", "flow_sonic", "r_engine", "z_engine", "vol_engine", "L_nozzle_parabolic", "Re", "thetaN", "xN", "R1", "R1p", "alpha", "L_chamber_parabolic", "Rc", "L_chamber_linear", "contourvalnames", "TWR");
+save(filename_datastorage, "T_wg_grad", "axial_temp_grad", "T_AlSi10Mg_melt", "T_w_max", "yieldstress_alloy", "yieldstress_max", "list_var_names", "ranges", "pc_range", "OF_range", "expansion_ratio_range", "mdot_range", "d_channel_range", "num_channels_range", "T_coolant_i_range", "wall_t_range", "k_wall_range", "therm_stress", "total_stress_doghouse", "total_stress_fins", "hoop_stress_doghouse", "hoop_stress_fins", "T_coolant_f", "P_coolant_min", "Twg", "Twl", "q", "Isp", "prop_cost_rate", "dt", "cstar", "cstar_theo", "thrust", "de", "eta_cstar", "Vc", "CR", "flow_sonic", "r_engine", "z_engine", "vol_engine", "L_nozzle_parabolic", "Re", "thetaN", "xN", "R1", "R1p", "alpha", "L_chamber_parabolic", "Rc", "L_chamber_linear", "contourvalnames", "TWR");
 
 % Dump random non-app-related data
 cell_data_dump = {"x (mm)", squeeze(z_engine(1, 1, 1, 1, 1, 1, 1, 1, 1, :))'; ...

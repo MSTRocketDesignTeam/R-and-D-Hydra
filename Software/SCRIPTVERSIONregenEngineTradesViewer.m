@@ -207,9 +207,14 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
 
                 % For each graph, make sure the variable corresponding to
                 % that graph is varied, not a constant. So include the
-                % entire range
-                y_vals_indices{i_var} = 1:length(ranges{i_var});
-
+                % entire range - unless it's therm_stress
+                if yaxisname ~= "therm_stress" && yaxisname ~= "T_wg_grad"
+                    y_vals_indices{i_var} = 1:length(ranges{i_var});
+                else
+                    % size is 10 for now
+                    y_vals_indices{10} = 1:size(therm_stress, 10);
+                end
+                
                 % Grab the slice of the data those indices point to
                 if ~strcmp(yaxisname, "axial_temp_grad")
                     y_vals = squeeze(y_vals(y_vals_indices{:}));
@@ -265,9 +270,28 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
                 end
                 try
                     if ~strcmp(yaxisname, "axial_temp_grad")
-                        plot(eval("app.UIAxes" + var_name), ranges{i_var}, y_vals);
+                        if ~strcmp(yaxisname, "therm_stress")
+                            if ~strcmp(yaxisname, "T_wg_grad")
+                                plot(eval("app.UIAxes" + var_name), ranges{i_var}, y_vals);
+                            else
+                                this_range = ranges{i_var};
+                                this_val = this_range(y_vals_indices{i_var});
+                                % Using axial_temp_grad(1, :) as position array
+                                %   for now
+                                plot(eval("app.UIAxes" + var_name), axial_temp_grad(1, :), y_vals);
+                                break;
+                            end
+                        else
+                            this_range = ranges{i_var};
+                            this_val = this_range(y_vals_indices{i_var});
+                            % Using axial_temp_grad(1, :) as position array
+                            %   for now
+                            plot(eval("app.UIAxes" + var_name), axial_temp_grad(1, :), y_vals);
+                            break;
+                        end
                     else
                         plot(eval("app.UIAxes" + var_name), axial_temp_grad(1, :), axial_temp_grad(2, :));
+                        break;
                     end
 
                     legend(eval("app.UIAxes" + var_name), "off");
@@ -629,7 +653,7 @@ classdef SCRIPTVERSIONregenEngineTradesViewer < matlab.apps.AppBase
             
             % Assume file is in same folder
             load("regenEngineTradesData.mat");
-            app.yaxisDropDown.Items = ["therm_stress (MPa)", "axial_temp_grad (deg C)", "hoop_stress_doghouse (MPa)", "hoop_stress_fins (MPa)", "total_stress_doghouse (MPa)", "total_stress_fins (MPa)", "vol_engine (mm^3)", "Twg (deg C)", "T_coolant_f (deg C)", "P_coolant_min (psi)", "Isp (s)", "thrust (lbf)", "prop_cost_rate ($)", "dt (in)", "de (in)", "cstar (ft/s)", "eta_cstar (%)", "TWR"];
+            app.yaxisDropDown.Items = ["therm_stress (MPa)", "T_wg_grad (deg C)", "axial_temp_grad (deg C)", "hoop_stress_doghouse (MPa)", "hoop_stress_fins (MPa)", "total_stress_doghouse (MPa)", "total_stress_fins (MPa)", "vol_engine (mm^3)", "Twg (deg C)", "T_coolant_f (deg C)", "P_coolant_min (psi)", "Isp (s)", "thrust (lbf)", "prop_cost_rate ($)", "dt (in)", "de (in)", "cstar (ft/s)", "eta_cstar (%)", "TWR"];
 
             % Still WIP - should probably some day be updated to not be
             %   recalculated every app use
