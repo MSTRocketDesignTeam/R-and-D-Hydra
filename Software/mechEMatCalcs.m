@@ -1,6 +1,9 @@
 % Variables are (mostly) named as they appear on the:
 %   "RDT Mechanics of Materials Formula Sheet"
 
+clc
+clear
+
 %% Parameters
 % psi to Pa
 press_ambient = 14.7 .* 6894.76;
@@ -19,8 +22,7 @@ press_chamber = 128 .* 6894.76;
 %   in to m
 d_bolt_minor = .25 .* .0254;
 % height from top of bolt hole to top of casing
-%   mm to m
-E_min = 1.5 .* 1E-3;
+E_min = 0.00541 - d_bolt_minor ./ 2;
 
 %% Calculations
 % chamber wall thickness (t_wall)
@@ -43,7 +45,7 @@ fprintf("Tear-out stress from each bolt is %.4f MPa\n", bolt_tear_out_stress .* 
 %   Using thick-walled cylinder formula
 p_a = press_chamber;
 p_b = press_ambient;
-%   (1)
+%   (1) - largest chamber diameter
 a = D_chamber_inner_max;
 b = D_chamber_outer_max;
 r_max_stress = a;
@@ -51,7 +53,7 @@ hoop_stress_max_diam = (p_a .* a.^2 - p_b .* b.^2) ./ (b.^2 - a.^2) + (a.^2 .* b
 radial_stress_max_diam = (p_a .* a.^2 - p_b .* b.^2) ./ (b.^2 - a.^2) - (a.^2 .* b.^2 .* (p_a - p_b)) ./ ((b.^2 - a.^2) .* r_max_stress.^2);
 fprintf("Max hoop stress at largest chamber diam.: %.4f MPa\n", hoop_stress_max_diam .* 1E-6);
 fprintf("Max radial stress at largest chamber diam.: %.4f MPa\n", radial_stress_max_diam .* 1E-6);
-%   (2)
+%   (2) - smallest chamber diameter
 a = D_chamber_inner_min;
 b = D_chamber_outer_min;
 r_max_stress = a;
