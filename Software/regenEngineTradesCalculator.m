@@ -274,7 +274,8 @@ Vc_eth = Zc_eth .* R_universal .* T_crit_eth ./ P_crit_eth;
 rho_crit_eth = 276;
 fT_r = @(T, T_crit) T ./ T_crit;
 % Uses Rackett equation for density
-% fDensity = @(rho_crit, Zc, T, T_crit) rho_crit ./ Zc.^(1 - fT_r(T, T_crit));
+% Can't actually find a way to access this paper, but here's the citation
+% Rackett, H.G. (1970) — "Equation of State for Saturated Liquids", J. Chem. Eng. Data, 15(4), 514–517.
 fDensity = @(mlr_wgt, Vc, Zc, T, T_crit) mlr_wgt ./ (Vc .* Zc.^((1 - fT_r(T, T_crit)).^(2 ./ 7)));
 % -------------------------------------------------------------------------
 % For coolant thermal conductivity calcs later - all these functions are
