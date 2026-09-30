@@ -1,24 +1,60 @@
-%%%%%%%%%%%%%%%
----------------
-Propellant Data
----------------
-Instructions:
-1) x
+------------------------
+Propellant Data Configs.
+------------------------
+BEGIN INSTRUCTIONS
+1) Read the variable descriptions below. They are material properties:
+	type:		<"OXIDIZER", "FUEL">,			~
+	cost:		cost per unit mass,			USD/kg
+	mlr_wgt:	molar weight,				kg/mol
+	rho: 		density, 				kg/m^3
+	cp: 		specific heat at constant pressure, 	J/(kg-K)
+	k:		thermal conductivity, 			W/(m-K)
+	mu:		dynamic viscosity,			Pa-s
 
-name: the name
-phase: phase (liquid or gas), "L" or "G"
-cost: cost, USD/kgm
+2) To add a new material config., copy the format below. If the property varies (most do), set the value
+	to "varies". This is more of a bookkeeping value because some propellants have functions
+	coded from correlations to solve for their thermodynamic properties based on state values. If
+	you don't want to go to the trouble of coding a correlation for a propellant, you can put a set
+	value for that property.
 
-Notes:
-1) kgm means kilogram-mass, whereas kgf means
- kilogram-force. 1 kgf = 1 kgm * g, where g is
- gravitational acceleration in m/s^2
+\EXAMPLE\
+type = <value, "varies">
+cost = <value, "varies">
+mlr_wgt = <value, "varies">
+rho = <value, "varies">
+cp = <value, "varies">
+k = <value, "varies">
+mu = <value, "varies">
+\end\
 
-%%%%%%%%%%%%%%%
-\CH3CH2OH\
+3) Separate material configs. as shown below
 
-name = ethanol
-phase = L
-cost = 
+\propellant_1\
+<properties>
+\end\
 
+\propellant_2\
+<properties>
+\end\
+
+END INSTRUCTIONS
+%
+\ETHANOL\
+type = "FUEL"
+cost = 1.0141
+mlr_wgt = 0.0460684
+rho = "varies"
+cp = 2430
+k = "varies"
+mu = "varies"
+\end\
+
+\N2O\
+type = "OXIDIZER"
+cost = 13.2277
+mlr_wgt = 0.04401
+rho = "varies"
+cp = 880
+k = "varies"
+mu = "varies"
 \end\

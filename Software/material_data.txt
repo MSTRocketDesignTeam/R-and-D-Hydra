@@ -1,0 +1,46 @@
+----------------------
+Material Data Configs.
+----------------------
+BEGIN INSTRUCTIONS
+1) Read the variable descriptions below. They are material properties:
+	rho: 		density, 				kg/m^3
+	cp: 		specific heat at constant pressure, 	J/(kg-K)
+	T_melt: 	melting temperature, 			K
+	E:		elastic modulus, 			Pa
+	CTE:		coefficient of thermal expansion, 	K^-1
+	epsilon:	surface roughness, 			m
+	k:		thermal conductivity, 			W/(m-K)
+
+2) To add a new material config., copy the format below
+
+\EXAMPLE\
+rho = <value>
+cp = <value>
+T_melt = <value>
+E = <value>
+CTE = <value>
+epsilon = <value>
+k = <value>
+\end\
+
+3) Separate material configs. as shown below
+
+\material_1\
+<properties>
+\end\
+
+\material_2\
+<properties>
+\end\
+
+END INSTRUCTIONS
+%
+\AlSi10Mg\
+rho = 0.002665
+cp = 1100
+T_melt = 843.15
+E = 68000000000
+CTE = 0.000027
+epsilon = 0.000012
+k = 112.4
+\end\

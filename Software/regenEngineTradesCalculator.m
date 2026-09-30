@@ -1,4 +1,4 @@
-%% Regen Engine Trades
+%% Regeneratively Cooled Liquid Rocket Engine Parameter Calculator
 % Units start in SI, converted to Imperial later for front end (MATLAB app)
 % -------------------------------------------------------------------------
 
