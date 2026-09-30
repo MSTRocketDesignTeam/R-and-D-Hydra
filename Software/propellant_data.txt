@@ -2,7 +2,7 @@
 Propellant Data Configs.
 ------------------------
 BEGIN INSTRUCTIONS
-1) Read the variable descriptions below. They are material properties:
+1) Read the variable descriptions below:
 	type:		<"OXIDIZER", "FUEL">,			~
 	cost:		cost per unit mass,			USD/kg
 	mlr_wgt:	molar weight,				kg/mol
@@ -11,7 +11,7 @@ BEGIN INSTRUCTIONS
 	k:		thermal conductivity, 			W/(m-K)
 	mu:		dynamic viscosity,			Pa-s
 
-2) To add a new material config., copy the format below. If the property varies (most do), set the value
+2) To add a new config., copy the format below. If the variable value isn't a constant, set the value
 	to "<filename>" or "correlation". If they are tabulated values dependent on some other independent
 	variable, choose "<filename>" except replace <filename> with the filename of a .xlsx file that
 	stores those tabulated values. Go to tabulatedValuesTemplate.xlsx to see an example format of
@@ -27,17 +27,17 @@ rho = "correlation"
 cp = "exampleFilename.xlsx"
 k = "correlation"
 mu = "correlation"
-\end\
+\END\
 
 3) Separate material configs. as shown below
 
-\propellant_1\
+\CONFIG1\
 <properties>
-\end\
+\END\
 
-\propellant_2\
+\CONFIG2\
 <properties>
-\end\
+\END\
 
 END INSTRUCTIONS
 %
@@ -49,7 +49,7 @@ rho = "correlation"
 cp = 2430
 k = "correlation"
 mu = "correlation"
-\end\
+\END\
 
 \N2O\
 type = "OXIDIZER"
@@ -59,4 +59,4 @@ rho = "correlation"
 cp = 880
 k = "correlation"
 mu = "correlation"
-\end\
+\END\

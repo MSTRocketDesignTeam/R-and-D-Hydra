@@ -2,7 +2,7 @@
 Material Data Configs.
 ----------------------
 BEGIN INSTRUCTIONS
-1) Read the variable descriptions below. They are material properties:
+1) Read the variable descriptions below:
 	rho: 		density, 				kg/m^3
 	cp: 		specific heat at constant pressure, 	J/(kg-K)
 	T_melt: 	melting temperature, 			K
@@ -11,7 +11,7 @@ BEGIN INSTRUCTIONS
 	epsilon:	surface roughness, 			m
 	k:		thermal conductivity, 			W/(m-K)
 
-2) To add a new material config., copy the format below. If the property varies (most do), set the value
+2) To add a new config., copy the format below. If the variable value isn't a constant, set the value
 	to "<filename>" or "correlation". If they are tabulated values dependent on some other independent
 	variable, choose "<filename>" except replace <filename> with the filename of a .xlsx file that
 	stores those tabulated values. Go to tabulatedValuesTemplate.xlsx to see an example format of
@@ -27,17 +27,17 @@ rho = "correlation"
 cp = "exampleFilename.xlsx"
 k = "correlation"
 mu = "correlation"
-\end\
+\END\
 
-3) Separate material configs. as shown below
+3) Separate configs. as shown below
 
-\material_1\
+\CONFIG1\
 <properties>
-\end\
+\END\
 
-\material_2\
+\CONFIG2\
 <properties>
-\end\
+\END\
 
 END INSTRUCTIONS
 %
@@ -49,4 +49,4 @@ E = 68000000000
 CTE = 0.000027
 epsilon = 0.000012
 k = 112.4
-\end\
+\END\

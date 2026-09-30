@@ -89,7 +89,7 @@ function data = GetConfigData(args)
     for i = length(thisConfigText)
         thisLine = thisConfigText(i);
         % Check if value is "varies"
-        if ~containts(thisLine, "varies")
+        if ~containts(thisLine, "correlation")
             % If not, eval this variable and assign it to data struct
             eval(thisLine);
             % Split line by spaces
