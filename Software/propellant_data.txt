@@ -12,19 +12,21 @@ BEGIN INSTRUCTIONS
 	mu:		dynamic viscosity,			Pa-s
 
 2) To add a new material config., copy the format below. If the property varies (most do), set the value
-	to "varies". This is more of a bookkeeping value because some propellants have functions
-	coded from correlations to solve for their thermodynamic properties based on state values. If
-	you don't want to go to the trouble of coding a correlation for a propellant, you can put a set
-	value for that property.
+	to "<filename>" or "correlation". If they are tabulated values dependent on some other independent
+	variable, choose "<filename>" except replace <filename> with the filename of a .xlsx file that
+	stores those tabulated values. Go to tabulatedValuesTemplate.xlsx to see an example format of
+	how to set one of those up. If the values are more complicated than that and are dependent on a
+	correlation, perhaps from some research paper, choose "correlation", and that will indicate the
+	correlation is stored in that specific configs. subclass in MATLAB.
 
 \EXAMPLE\
-type = <value, "varies">
-cost = <value, "varies">
-mlr_wgt = <value, "varies">
-rho = <value, "varies">
-cp = <value, "varies">
-k = <value, "varies">
-mu = <value, "varies">
+type = <value>
+cost = <value>
+mlr_wgt = <value>
+rho = "correlation"
+cp = "exampleFilename.xlsx"
+k = "correlation"
+mu = "correlation"
 \end\
 
 3) Separate material configs. as shown below
@@ -43,18 +45,18 @@ END INSTRUCTIONS
 type = "FUEL"
 cost = 1.0141
 mlr_wgt = 0.0460684
-rho = "varies"
+rho = "correlation"
 cp = 2430
-k = "varies"
-mu = "varies"
+k = "correlation"
+mu = "correlation"
 \end\
 
 \N2O\
 type = "OXIDIZER"
 cost = 13.2277
 mlr_wgt = 0.04401
-rho = "varies"
+rho = "correlation"
 cp = 880
-k = "varies"
-mu = "varies"
+k = "correlation"
+mu = "correlation"
 \end\

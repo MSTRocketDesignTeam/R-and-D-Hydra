@@ -11,16 +11,22 @@ BEGIN INSTRUCTIONS
 	epsilon:	surface roughness, 			m
 	k:		thermal conductivity, 			W/(m-K)
 
-2) To add a new material config., copy the format below
+2) To add a new material config., copy the format below. If the property varies (most do), set the value
+	to "<filename>" or "correlation". If they are tabulated values dependent on some other independent
+	variable, choose "<filename>" except replace <filename> with the filename of a .xlsx file that
+	stores those tabulated values. Go to tabulatedValuesTemplate.xlsx to see an example format of
+	how to set one of those up. If the values are more complicated than that and are dependent on a
+	correlation, perhaps from some research paper, choose "correlation", and that will indicate the
+	correlation is stored in that specific configs. subclass in MATLAB.
 
 \EXAMPLE\
-rho = <value>
-cp = <value>
-T_melt = <value>
-E = <value>
-CTE = <value>
-epsilon = <value>
-k = <value>
+type = <value>
+cost = <value>
+mlr_wgt = <value>
+rho = "correlation"
+cp = "exampleFilename.xlsx"
+k = "correlation"
+mu = "correlation"
 \end\
 
 3) Separate material configs. as shown below
