@@ -88,8 +88,8 @@ function data = GetConfigData(args)
     % Loop through lines
     for i = length(thisConfigText)
         thisLine = thisConfigText(i);
-        % Check if value is "varies"
-        if ~containts(thisLine, "correlation")
+        % Check if value is a string
+        if ~class(thisLine, "correlation")
             % If not, eval this variable and assign it to data struct
             eval(thisLine);
             % Split line by spaces
