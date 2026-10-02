@@ -1,11 +1,5 @@
-% Superclass for propellant objects. Pairs with a propellant_data.txt
-% config. file for propellant info. Some propellants have more complex
-% correlations documented for material properties at varying state
-% conditions, so subclasses should be defined for each propellant in the
-% config., and if properties are only defined as constant, this superclass
-% handles the inheritance of those constant properties from that config.
-% file. The subclasses only differ in how they implement those correlations
-% for each propellant.
+% Stores material data read in from material config file after searching
+% for specific material config
 % -------------------------------------------------------------------------
 % Dependencies
 %   #) <Dependency>
@@ -16,34 +10,20 @@
 % Comments
 %   #) <Comment>
 % -------------------------------------------------------------------------
-% Nomenclature
-%   <Symbol> = <Meaning> (<Units>)
+% Document Version <Version>, former versions:
+%   - Version>
 % -------------------------------------------------------------------------
 % MATLAB Version <Oldest Version>, also compatible with:
 %   - <Later Version>
 % -------------------------------------------------------------------------
 % Developed by Alex Vance (AlexVance00 on Github)
-classdef (Abstract) Propellant
+classdef Material
 
-    properties (Constant)
-        NA = 6.02214076E23; % Avogadro's Number
-        R_universal = 8.314; % Universal gas constant
-        configFile = "propellant_data.txt";
-    end
+    properties
 
-    properties (SetAccess = protected)
-        name (1, 1) string
-        data struct
     end
 
     methods (Access = public)
-
-        function obj = Propellant(name)
-            obj.name = name;
-            obj.data = GetConfigData();
-
-            return;
-        end
 
         function result = FunctionTemplate(args)
         % <Function Purpose>
@@ -51,18 +31,6 @@ classdef (Abstract) Propellant
         % -----------------------------------------------------------------
         % Arguments
         %   <Symbol> = <Explanation> (<Units>)
-        % -----------------------------------------------------------------
-        % Dependencies
-        %   #) <Dependency Filepath>
-        % -----------------------------------------------------------------
-        % Assumptions
-        %   #) <Assumption>
-        % -----------------------------------------------------------------
-        % Sources
-        %   #) <Source>
-        % -----------------------------------------------------------------
-        % MATLAB Version <Oldest Version>, also compatible with:
-        %   - <Later Version>
         % -----------------------------------------------------------------
         
             % Allows arguments to be optional and assigned in the function
@@ -108,6 +76,10 @@ classdef (Abstract) Propellant
         
             return;
         end
+
+    end
+
+    methods (Access = private)
 
     end
 

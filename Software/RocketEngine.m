@@ -2,13 +2,13 @@
 % like its geometry, performance metrics, propellant information, etc.
 % -------------------------------------------------------------------------
 % Dependencies
-%   #) <Dependency>
+%   1) GetConfigData.m
 % -------------------------------------------------------------------------
 % Assumptions
-%   #) <Assumption>
+%   1) Engine uses 2 propellants, an oxidizer and a fuel
 % -------------------------------------------------------------------------
 % Comments
-%   #) All units are in SI at this time.
+%   1) All units are in SI at this time.
 % -------------------------------------------------------------------------
 % Nomenclature
 %   <Symbol> = <Meaning> (<Units>)
@@ -20,35 +20,26 @@
 classdef RocketEngine
 
     %% Properties
-    % Physical constants
     properties (SetAccess = private)
+        % Physical constants
         g0 = 9.81; % Gravitational acceleration on Earth at sea level
         R_universal = 8.314; % Universal gas constant
         p_sea = 101325; % Total air pressure of still air at sea level
         T_sea = 288.15; % Total temperature of still air at sea level
         mlr_wgt_air = .02896968; % Molar weight of air
 
-    end
-
-    properties
         % Environment
         alt = 342; % Altitude above sea level
         T_amb = 273.15 + 20; % Static ambient temperature
         p_amb = 101325; % Static ambient pressure
 
         % Information about the material the engine is made of
-        material_name = ""; % Material name. For valid options, see method "printValidMaterialNames"
-        rho_material = 
-        cp_material = 
-        T_melt_material = 
-        E_material = 
-        CTE_material = 
-        epsilon_material = 
-        k_material = 
+        material Material % Material class object
 
         % Information about the engine propellants
-        ox_name = "N2O"; % Oxidizer name. For valid options, see method "printValidPropellantNames"
-        fuel_name = "ETHANOL"; % Fuel name. For valid options, see method "printValidPropellantNames"
+        fuel Propellant % Engine fuel propellant, Propellant class object
+        oxidizer Propellant % Engine oxidizer propellant, Propellant class object
+
 
     end
 

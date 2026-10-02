@@ -29,7 +29,7 @@ k = "correlation"
 mu = "correlation"
 \END\
 
-3) Separate material configs. as shown below
+3) Separate configs. as shown below
 
 \CONFIG1\
 <properties>
