@@ -3,6 +3,7 @@ Propellant Data Configs.
 ------------------------
 BEGIN INSTRUCTIONS
 1) Read the variable descriptions below:
+	name:		propellant name,			~
 	type:		<"OXIDIZER", "FUEL">,			~
 	cost:		cost per unit mass,			USD/kg
 	mlr_wgt:	molar weight,				kg/mol
@@ -20,6 +21,7 @@ BEGIN INSTRUCTIONS
 	correlation is stored in that specific configs. subclass in MATLAB.
 
 \EXAMPLE\
+name = <value>
 type = <value>
 cost = <value>
 mlr_wgt = <value>
@@ -42,6 +44,7 @@ mu = "correlation"
 END INSTRUCTIONS
 %
 \ETHANOL\
+name = "ETHANOL"
 type = "FUEL"
 cost = 1.0141
 mlr_wgt = 0.0460684
@@ -52,6 +55,7 @@ mu = "correlation"
 \END\
 
 \N2O\
+name = "N2O"
 type = "OXIDIZER"
 cost = 13.2277
 mlr_wgt = 0.04401

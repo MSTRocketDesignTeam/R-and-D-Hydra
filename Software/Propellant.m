@@ -8,7 +8,7 @@
 % for each propellant.
 % -------------------------------------------------------------------------
 % Dependencies
-%   #) <Dependency>
+%   1) propellant_data.txt
 % -------------------------------------------------------------------------
 % Assumptions
 %   #) <Assumption>
@@ -19,8 +19,8 @@
 % Nomenclature
 %   <Symbol> = <Meaning> (<Units>)
 % -------------------------------------------------------------------------
-% MATLAB Version <Oldest Version>, also compatible with:
-%   - <Later Version>
+% MATLAB Version R2024b, also compatible with:
+%   - R2025b
 % -------------------------------------------------------------------------
 % Developed by Alex Vance (AlexVance00 on Github)
 classdef (Abstract) Propellant
@@ -32,83 +32,52 @@ classdef (Abstract) Propellant
     end
 
     properties (SetAccess = protected)
-        name (1, 1) string
-        data struct
+        name
+        type
+        cost
+        mlr_wgt
+        rho
+        cp
+        k
+        mu
     end
 
     methods (Access = public)
 
-        function obj = Propellant(name)
-            obj.name = name;
-            obj.data = GetConfigData();
+        % Constructor
+        function obj = Propellant()
+
+            configFile = Propellant.configFile;
+
+            % Get configName from class name of calling object. Subclass
+            % initialization will call this constructor, converting to
+            % uppercase string puts it in format matching configFile
+            % configName = upper(string(class(obj)));
+            configName = obj.configName;
+
+            % Can assume what data will be in there because we know what
+            % will be in the hardcoded configFile variables list
+            % Get number of config names passed- configName could be an
+            % array, this is vectorized
+            data = GetConfigData(configFile = configFile, configName = configName);
+
+            % If numConfigNames is not 1, flag there as being multiple and
+            % preallocate array of obj types for speed's sake
+            numConfigNames = numel(configName);
+            flagMultipleConfigNames = false;
+            if numConfigNames ~= 1
+                flagMultipleConfigNames = true;
+                obj(numConfigNames) = Propellant();
+            end
+
+            % Assign obj properties values from data's fields for each
+            % config name passed
+            for i = 1:numConfigNames
+                obj(i).name = configName(i);
+                obj(i).data = data(i);
+            end
 
             return;
         end
-
-        function result = FunctionTemplate(args)
-        % <Function Purpose>
-        %                                             <Output> in (<Units>)
-        % -----------------------------------------------------------------
-        % Arguments
-        %   <Symbol> = <Explanation> (<Units>)
-        % -----------------------------------------------------------------
-        % Dependencies
-        %   #) <Dependency Filepath>
-        % -----------------------------------------------------------------
-        % Assumptions
-        %   #) <Assumption>
-        % -----------------------------------------------------------------
-        % Sources
-        %   #) <Source>
-        % -----------------------------------------------------------------
-        % MATLAB Version <Oldest Version>, also compatible with:
-        %   - <Later Version>
-        % -----------------------------------------------------------------
-        
-            % Allows arguments to be optional and assigned in the function
-            %   call as in: FunctionTemplate(<arg_name> = <arg_val>, ...)
-        
-            % List all argument names
-            arguments
-                args.arg_1 = [];
-            end
-            arg_name_list = fieldnames(args);
-        
-            % List those argument names which are optional in 1D string
-            %   array
-            optional_arg_names = [];
-        
-            % Makes variables out of args' fieldnames
-            for i_fieldname = 1:length(arg_name_list)
-                arg_name = arg_name_list{i_fieldname};
-                arg_val = args.(arg_name);
-        
-                % Input Checking
-                % Checks if this argument was assigned
-                if ~isempty(arg_val)
-        
-                    % Initializes assigned arguments
-                    eval(append(arg_name, " = arg_val;"));
-                % If argument was unassigned, checks if it was optional
-                elseif ~ismember(arg_name, optional_arg_names)
-                    
-                    % If unassigned argument was non-optional, throws error
-                    error("No input for non-optional '%s' argument", ...
-                        arg_name);
-                end
-            end
-        
-            % Unit Conversions
-        
-            % Intermediate Calculations
-        
-            % Final Calculations
-        
-            % Display Results and/or Plotting
-        
-            return;
-        end
-
     end
-
 end

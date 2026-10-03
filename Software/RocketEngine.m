@@ -13,8 +13,8 @@
 % Nomenclature
 %   <Symbol> = <Meaning> (<Units>)
 % -------------------------------------------------------------------------
-% MATLAB Version <Oldest Version>, also compatible with:
-%   - <Later Version>
+% MATLAB Version R2024b, also compatible with:
+%   - R2025b
 % -------------------------------------------------------------------------
 % Developed by Alex Vance (AlexVance00 on Github)
 classdef RocketEngine

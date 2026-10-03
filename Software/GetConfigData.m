@@ -19,11 +19,11 @@ function data = GetConfigData(args)
 % Sources
 %   #) <Source>
 % -------------------------------------------------------------------------
-% Document Version 1.0, former versions:
-%   - <Later Version>
+% Document Version 2.0, former versions:
+%   - 1.0
 % -------------------------------------------------------------------------
-% MATLAB Version <Oldest Version>, also compatible with:
-%   - <Later Version>
+% MATLAB Version R2024b, also compatible with:
+%   - R2025b
 % -------------------------------------------------------------------------
 % Developed by Alex Vance (AlexVance00 on Github)
 % -------------------------------------------------------------------------
@@ -70,14 +70,23 @@ function data = GetConfigData(args)
         end
     end
 
+    % Search MATLAB path for configFile, store matches
+    configFileSearchMatches = dir(fullfile(pwd, "**", configFile));
+
+    % Check if no matches were found
+    if isempty(configFileSearchMatches)
+        % If none were found, throw error- it needs to be found
+        error("Config file ""%s"" not found in working directory ""%s""\n", configFile, pwd);
+    end
+
+    % If there's a match, continue. Use first match found, ignore
+    % dupes
+    configFilePath = fullfile(configFileSearchMatches(1).folder, configFileSearchMatches(1).name);
+
     splitChar = "%"; % Character denoting end of instructions section and beginning of configs.
 
-    % Unit Conversions
-
-    % Intermediate Calculations
-
     % Take out instructions header
-    rawText = readlines(configFile);
+    rawText = readlines(configFilePath);
     splitLineNumber = find(rawText == splitChar);
     allConfigsText = rawText(splitLineNumber + 1:end);
     % Get number of elements in configName
@@ -98,7 +107,7 @@ function data = GetConfigData(args)
         % input to have been passed to configName that isn't in the configFile,
         % so check for that
         if isempty(configStartLineNumber)
-            error("Config ""%s"" not found in ""%s""\n", thisConfigName, configFile);
+            error("Config ""%s"" not found in ""%s""\n", thisConfigName, configFilePath);
         end
         remainingConfigsText = allConfigsText(configStartLineNumber:end);
         configEndLineNumber = find(remainingConfigsText == "\END\", 1);
@@ -154,10 +163,6 @@ function data = GetConfigData(args)
             end
         end
     end
-
-    % Final Calculations
-
-    % Display Results and/or Plotting
 
     return;
 end
